@@ -7,7 +7,9 @@ iOS-порт [Core Player для Android](https://github.com/Skenls/core-player-
 - Тёмная тема, русский интерфейс
 - Без сторонних зависимостей (только Apple frameworks)
 
-> Код написан, но **не собирался**: в системе не установлен Xcode. Первая сборка — в Xcode, см. ниже.
+> Полная документация — **[DOCS.md](DOCS.md)**: архитектура, экраны, плеер, кэш, API, сборка, CI, тесты, troubleshooting.
+
+> Приложение собирается на GitHub Actions (см. CI в DOCS.md), свежий IPA — артефактом.
 ## Быстрый старт
 
 ```bash
@@ -77,4 +79,4 @@ Xcode-тесты: `CorePlayerTests/CorePlayerTests.swift` (XCTest).
 
 ## Статус
 
-Код написан, но **не собран**: в системе нет Xcode, а `xcodebuild` по просьбе не запускался. Первый запуск в Xcode может потребовать правок под версию SDK.
+Код собирается на CI (GitHub Actions, unsigned IPA): в системе нет Xcode, а `xcodebuild` по просьбе не запускался. Первый запуск в Xcode может потребовать правок под версию SDK.
