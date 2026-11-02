@@ -109,7 +109,7 @@ struct SectionHeader: View {
                 Button(action: action) {
                     Text(actionTitle)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(CoreColors.accent)
+                        .foregroundColor(CoreColors.textPrimary)
                 }
                 .buttonStyle(.plain)
             }
@@ -127,9 +127,9 @@ struct IconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(accent ? .white : CoreColors.textPrimary)
+                .foregroundColor(accent ? Color.black : CoreColors.textPrimary)
                 .frame(width: size, height: size)
-                .background(accent ? AnyShapeStyle(CoreGradients.accent) : AnyShapeStyle(CoreColors.surfaceVariant))
+                .background(accent ? AnyShapeStyle(Color.white) : AnyShapeStyle(CoreColors.surfaceVariant))
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
@@ -144,7 +144,7 @@ struct LoadingView: View {
     var body: some View {
         VStack(spacing: 12) {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: CoreColors.accent))
+                .progressViewStyle(CircularProgressViewStyle(tint: .white))
             Text(text)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(CoreColors.textSecondary)
@@ -162,7 +162,7 @@ struct ErrorStateView: View {
         VStack(spacing: 14) {
             Image(systemName: "wifi.exclamationmark")
                 .font(.system(size: 34, weight: .semibold))
-                .foregroundColor(CoreColors.accent)
+                .foregroundColor(CoreColors.textSecondary)
             Text(title)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(CoreColors.textPrimary)
@@ -177,7 +177,7 @@ struct ErrorStateView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 22)
                         .padding(.vertical, 10)
-                        .background(CoreGradients.accent)
+                        .background(Capsule().strokeBorder(Color.white.opacity(0.55), lineWidth: 1))
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)

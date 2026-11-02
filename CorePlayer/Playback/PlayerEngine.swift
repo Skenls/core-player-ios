@@ -5,11 +5,16 @@ final class PlayerEngine {
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
     private var itemStatusObserver: NSKeyValueObservation?
+    private var itemStallObserver: NSKeyValueObservation?
 
     var onTime: ((Double, Double) -> Void)?
     var onEnded: (() -> Void)?
     var onError: ((Error?) -> Void)?
     var onReady: ((Double) -> Void)?
+
+    private static let stallKickDelay: Double = 8
+
+    private var stallKickWork: DispatchWorkItem?
 
     init() {
         player.actionAtItemEnd = .pause
@@ -41,8 +46,12 @@ final class PlayerEngine {
     func load(url: URL) {
         player.pause()
         itemStatusObserver?.invalidate()
+        itemStallObserver?.invalidate()
+        cancelStallKick()
 
         let item = AVPlayerItem(url: url)
+        // Buffer well ahead so short server hiccups do not interrupt playback.
+        item.preferredForwardBufferDuration = 30
         player.replaceCurrentItem(with: item)
 
         itemStatusObserver = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
@@ -58,6 +67,47 @@ final class PlayerEngine {
                 }
             }
         }
+
+        // Network-hiccup watchdog: if AVPlayer stays in "waiting to play at
+        // specified rate" for 8s (minimize stalling), nudge it back to life.
+        itemStallObserver = item.observe(\.timeControlStatus, options: [.new]) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                self?.handleTimeControl(item.timeControlStatus)
+            }
+        }
+    }
+
+    private func handleTimeControl(_ status: AVPlayer.TimeControlStatus) {
+        switch status {
+        case .waitingToPlayAtSpecifiedRate:
+            scheduleStallKick()
+        case .playing, .paused:
+            cancelStallKick()
+        @unknown default:
+            break
+        }
+    }
+
+    private func scheduleStallKick() {
+        guard stallKickWork == nil, player.currentItem != nil else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            if self.player.timeControlStatus == .waitingToPlayAtSpecifiedRate,
+               self.player.currentItem?.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+                self.player.pause()
+                self.player.play()
+                // Second strike: schedule one more kick in case the first didn't help.
+                self.stallKickWork = nil
+                self.scheduleStallKick()
+            }
+        }
+        stallKickWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.stallKickDelay, execute: work)
+    }
+
+    private func cancelStallKick() {
+        stallKickWork?.cancel()
+        stallKickWork = nil
     }
 
     func play() {
@@ -77,6 +127,9 @@ final class PlayerEngine {
         player.pause()
         itemStatusObserver?.invalidate()
         itemStatusObserver = nil
+        itemStallObserver?.invalidate()
+        itemStallObserver = nil
+        cancelStallKick()
         player.replaceCurrentItem(with: nil)
     }
 
@@ -98,5 +151,7 @@ final class PlayerEngine {
             NotificationCenter.default.removeObserver(endObserver)
         }
         itemStatusObserver?.invalidate()
+        itemStallObserver?.invalidate()
+        cancelStallKick()
     }
 }

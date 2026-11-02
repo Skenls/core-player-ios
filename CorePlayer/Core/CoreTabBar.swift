@@ -15,6 +15,15 @@ enum AppTab: String, CaseIterable, Identifiable, Hashable {
 
     var icon: String {
         switch self {
+        case .home: return "house"
+        case .search: return "magnifyingglass"
+        case .browse: return "music.note.list"
+        case .library: return "square.stack"
+        }
+    }
+
+    var selectedIcon: String {
+        switch self {
         case .home: return "house.fill"
         case .search: return "magnifyingglass"
         case .browse: return "music.note.list"
@@ -29,22 +38,30 @@ struct CoreTabBar: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases) { tab in
+                let selected = selection == tab
                 Button {
                     selection = tab
                 } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: tab.icon).font(.system(size: 19, weight: .semibold))
-                        Text(tab.title).font(.system(size: 9, weight: .medium)).lineLimit(1)
+                    VStack(spacing: 3) {
+                        Image(systemName: selected ? tab.selectedIcon : tab.icon)
+                            .font(.system(size: 20, weight: .regular))
+                        Text(tab.title)
+                            .font(.system(size: 11, weight: selected ? .medium : .regular))
+                            .lineLimit(1)
                     }
-                    .foregroundColor(selection == tab ? CoreColors.accent : CoreColors.textSecondary)
+                    .foregroundColor(selected ? CoreColors.textPrimary : CoreColors.textSecondary)
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
-        .background(CoreColors.bottomBar)
-        .overlay(Rectangle().frame(height: 0.5).foregroundColor(CoreColors.divider), alignment: .top)
+        .padding(.horizontal, 12)
+        .frame(height: 56)
+        .background(alignment: .bottom) {
+            Rectangle()
+                .fill(CoreColors.bottomBar)
+                .ignoresSafeArea(edges: .bottom)
+        }
+        .overlay(alignment: .top) { Rectangle().fill(Color.white).frame(height: 0.5).opacity(0.08) }
     }
 }

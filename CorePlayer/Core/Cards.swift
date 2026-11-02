@@ -118,59 +118,66 @@ struct RecentCard: View {
 
 struct FavoriteBanner: View {
     let count: Int
+    var coverArt: String? = nil
     let onPlay: () -> Void
-    let onShuffle: () -> Void
 
     var body: some View {
-        ZStack(alignment: .leading) {
+        ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(hex: 0x3A1C12),
-                            Color(hex: 0x1C2433)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            Image(systemName: "heart.fill")
-                .font(.system(size: 118, weight: .bold))
-                .foregroundColor(CoreColors.accent.opacity(0.10))
-                .offset(x: 220, y: 18)
+                .fill(sunsetGradient)
 
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Избранное")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
-                    Text(Formatters.trackCount(count))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(CoreColors.textSecondary)
-                }
-                Spacer()
-                Button(action: onPlay) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 44, height: 44)
-                        .background(CoreGradients.accent)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                Button(action: onShuffle) {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.white.opacity(0.10))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
+            if coverArt != nil {
+                CoverView(coverID: coverArt, size: 400, cornerRadius: 18, pixelSize: 600)
+                    .opacity(0.55)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
+
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.06),
+                    Color(hex: 0x0B0F17).opacity(0.16),
+                    Color(hex: 0x0B0F17).opacity(0.60)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Мои треки")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                Text("Плейлист · \(Formatters.trackCount(count))")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: 0xD1D5DB))
+                    .lineLimit(1)
+            }
+            .padding(.leading, 20)
+            .padding(.bottom, 18)
         }
-        .frame(height: 96)
+        .frame(height: 150)
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "heart")
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(.white)
+                .padding(12)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .onTapGesture { onPlay() }
+    }
+
+    private var sunsetGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(hex: 0x28153A),
+                Color(hex: 0x4C2253),
+                Color(hex: 0x673266),
+                Color(hex: 0x293D5C),
+                Color(hex: 0x101826)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 }

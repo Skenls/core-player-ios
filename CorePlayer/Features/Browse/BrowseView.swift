@@ -15,7 +15,7 @@ struct BrowseView: View {
                 content
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 24)
+            .padding(.bottom, 120)
         }
         .background((settings.amoled ? Color.black : CoreColors.background).ignoresSafeArea())
         .refreshable { await vm.load(api: api, force: true) }

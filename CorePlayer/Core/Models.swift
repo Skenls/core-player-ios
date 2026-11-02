@@ -68,8 +68,8 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
     }
 
     var displayArtist: String {
-        guard let artist = artist, !artist.isEmpty else { return "Неизвестный исполнитель" }
-        return artist
+        let cleaned = cleanArtistName(artist)
+        return cleaned.isEmpty ? "Неизвестный исполнитель" : cleaned
     }
 
     var displayAlbum: String {

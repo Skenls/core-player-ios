@@ -52,7 +52,7 @@ struct AlbumDetailView: View {
                     Text("АЛЬБОМ")
                         .font(.system(size: 10, weight: .bold))
                         .tracking(1.6)
-                        .foregroundColor(CoreColors.accent)
+                        .foregroundColor(.white)
 
                     Text(album.name)
                         .font(.system(size: 24, weight: .bold))
@@ -86,10 +86,10 @@ struct AlbumDetailView: View {
                 Button { playAll() } label: {
                     Label("Слушать", systemImage: "play.fill")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 13)
-                        .background(CoreGradients.accent)
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .disabled(tracks.isEmpty)
@@ -109,7 +109,7 @@ struct AlbumDetailView: View {
                 } label: {
                     Image(systemName: favorites.isAlbumFavorite(album.id) ? "heart.fill" : "heart")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(favorites.isAlbumFavorite(album.id) ? CoreColors.accent : .white)
+                        .foregroundColor(favorites.isAlbumFavorite(album.id) ? CoreColors.favorite : .white)
                         .frame(width: 48, height: 48)
                         .background(CoreColors.surfaceVariant)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))

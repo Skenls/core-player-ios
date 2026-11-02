@@ -70,10 +70,11 @@ struct LogicTests {
         let base = URL(string: "http://localhost:3000")!
         let auto = StreamURLBuilder.streamURL(baseURL: base, trackID: "t1", codec: .auto, sessionID: "sid")
         expect(auto?.absoluteString.contains("format=") == false, "auto omits format")
-        expect(auto?.absoluteString.contains("estimateContentLength=true") == true, "adds estimateContentLength")
+        expect(auto?.absoluteString.contains("estimateContentLength=true") == false, "auto omits estimateContentLength (Android parity)")
         expect(auto?.absoluteString.contains("session_id=sid") == true, "adds session id")
         let mp3 = StreamURLBuilder.streamURL(baseURL: base, trackID: "t1", codec: .mp3, sessionID: nil)
         expect(mp3?.absoluteString.contains("format=mp3") == true, "adds mp3 format")
+        expect(mp3?.absoluteString.contains("estimateContentLength=true") == true, "mp3 adds estimateContentLength")
         expect(mp3?.absoluteString.contains("session_id") == false, "omits empty session id")
         let cover = StreamURLBuilder.coverURL(baseURL: base, coverID: "al-1", size: 600, sessionID: "sid")
         expect(cover?.absoluteString.contains("/api/stream/cover/al-1") == true, "builds cover path")

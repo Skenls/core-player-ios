@@ -61,7 +61,7 @@ struct TrackRow: View {
             } label: {
                 Image(systemName: favorites.isFavorite(track) ? "heart.fill" : "heart")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(favorites.isFavorite(track) ? CoreColors.accent : CoreColors.textSecondary.opacity(0.8))
+                    .foregroundColor(favorites.isFavorite(track) ? CoreColors.favorite : CoreColors.textSecondary.opacity(0.8))
                     .frame(width: 30, height: 30)
             }
             .buttonStyle(.plain)
@@ -137,7 +137,7 @@ struct AddToPlaylistSheet: View {
                 CoreColors.background.ignoresSafeArea()
                 if isLoading {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: CoreColors.accent))
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 } else if let errorMessage {
                     ErrorStateView(title: "Не удалось загрузить", message: errorMessage) {
                         Task { await load() }
@@ -174,10 +174,10 @@ struct AddToPlaylistSheet: View {
                                         Spacer()
                                         if addingID == playlist.id {
                                             ProgressView()
-                                                .progressViewStyle(CircularProgressViewStyle(tint: CoreColors.accent))
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         } else {
                                             Image(systemName: "plus.circle")
-                                                .foregroundColor(CoreColors.accent)
+                                                .foregroundColor(CoreColors.textPrimary)
                                         }
                                     }
                                     .padding(.horizontal, 16)
@@ -198,7 +198,7 @@ struct AddToPlaylistSheet: View {
                     Button("Закрыть") {
                         presentationMode.wrappedValue.dismiss()
                     }
-                    .foregroundColor(CoreColors.accent)
+                    .foregroundColor(.white)
                 }
             }
         }

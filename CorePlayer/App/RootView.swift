@@ -28,11 +28,11 @@ struct SplashView: View {
                         .font(.system(size: 46, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     Circle()
-                        .fill(CoreColors.accent)
+                        .fill(Color.white)
                         .frame(width: 10, height: 10)
                 }
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: CoreColors.accent))
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
             }
         }
     }

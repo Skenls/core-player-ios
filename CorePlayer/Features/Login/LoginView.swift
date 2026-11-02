@@ -76,12 +76,12 @@ struct LoginView: View {
                             Text(auth.isLoggingIn ? "Подключение…" : "Войти")
                                 .font(.system(size: 16, weight: .semibold))
                         }
-                        .foregroundColor(.white)
+                        .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
-                        .background(CoreGradients.accent)
+                        .background(Color.white.opacity(auth.isLoggingIn ? 0.5 : 1))
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .shadow(color: CoreColors.accent.opacity(0.35), radius: 18, x: 0, y: 8)
+                        .shadow(color: Color.white.opacity(0.14), radius: 18, x: 0, y: 8)
                     }
                     .buttonStyle(.plain)
                     .disabled(auth.isLoggingIn)
@@ -119,15 +119,15 @@ struct LoginView: View {
             CoreColors.background
             LinearGradient(
                 colors: [
-                    CoreColors.accent.opacity(0.22),
-                    CoreColors.accent.opacity(0.04),
+                    Color.white.opacity(0.10),
+                    Color.white.opacity(0.02),
                     CoreColors.background
                 ],
                 startPoint: .topTrailing,
                 endPoint: .center
             )
             Circle()
-                .fill(CoreColors.accent.opacity(0.12))
+                .fill(Color.white.opacity(0.08))
                 .frame(width: 320, height: 320)
                 .blur(radius: 80)
                 .offset(x: 150, y: -260)
@@ -147,7 +147,7 @@ struct LoginView: View {
                     .font(.system(size: 46, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                 Circle()
-                    .fill(CoreColors.accent)
+                    .fill(Color.white)
                     .frame(width: 10, height: 10)
                     .offset(y: 12)
             }

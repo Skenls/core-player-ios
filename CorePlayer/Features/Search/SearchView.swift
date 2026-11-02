@@ -58,7 +58,7 @@ struct SearchView: View {
                 SearchResultsView(results: vm.results) { track, queue in
                     player.play(track: track, in: queue, source: "Поиск")
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, 120)
             }
         }
     }
@@ -74,7 +74,7 @@ struct SearchView: View {
                     Spacer()
                     Button("Очистить") { searchHistory.clear() }
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(CoreColors.accent)
+                        .foregroundColor(CoreColors.textPrimary)
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], spacing: 8) {
                     ForEach(searchHistory.queries, id: \.self) { query in

@@ -271,12 +271,8 @@ final class PlayerStore: ObservableObject {
 
         recent.add(track)
 
-        cache.prefetch(
-            track: track,
-            codec: codec,
-            baseURL: api.baseURL,
-            sessionID: api.sessionID
-        )
+        // Prefetch only the NEXT track in the queue: prefetching the current
+        // track doubles server traffic and can stall the live AVPlayer stream.
         if let nextTrack = queue.nextTrack {
             cache.prefetch(
                 track: nextTrack,

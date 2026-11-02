@@ -33,8 +33,10 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Закрыть") { presentationMode.wrappedValue.dismiss() }
+                        .foregroundColor(.white)
                 }
             }
+            .tint(.white)
         }
         .preferredColorScheme(.dark)
         .confirmationDialog("Выйти?", isPresented: $showLogout) {

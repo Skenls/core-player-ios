@@ -52,6 +52,6 @@ final class AppContainer: ObservableObject {
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
-        UINavigationBar.appearance().tintColor = UIColor(CoreColors.accent)
+        UINavigationBar.appearance().tintColor = UIColor.white
     }
 }

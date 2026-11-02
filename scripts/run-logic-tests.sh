@@ -10,6 +10,7 @@ swiftc \
   -o "$OUT" \
   "$ROOT/CorePlayer/Core/AudioCodec.swift" \
   "$ROOT/CorePlayer/Core/Models.swift" \
+  "$ROOT/CorePlayer/Core/ArtistUtils.swift" \
   "$ROOT/CorePlayer/Core/LRCParser.swift" \
   "$ROOT/CorePlayer/Core/StreamURLBuilder.swift" \
   "$ROOT/CorePlayer/Playback/QueueState.swift" \

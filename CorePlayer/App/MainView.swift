@@ -12,18 +12,22 @@ struct MainView: View {
     @State private var showNowPlaying = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                tab(.home) { HomeView() }
-                tab(.search) { SearchView() }
-                tab(.browse) { BrowseView() }
-                tab(.library) { LibraryView() }
-            }
-
-            MiniPlayerView(showNowPlaying: $showNowPlaying)
-            CoreTabBar(selection: $selected)
+        ZStack {
+            tab(.home) { HomeView() }
+            tab(.search) { SearchView() }
+            tab(.browse) { BrowseView() }
+            tab(.library) { LibraryView() }
         }
         .background((settings.amoled ? Color.black : CoreColors.background).ignoresSafeArea())
+        // Floating bubble (Telegram-style) above a solid bottom tab bar.
+        .overlay(alignment: .bottom) {
+            MiniPlayerView(openPlayer: { showNowPlaying = true })
+                .padding(.bottom, 4)
+                .zIndex(2)
+        }
+        .safeAreaInset(edge: .bottom) {
+            CoreTabBar(selection: $selected)
+        }
         .fullScreenCover(isPresented: $showNowPlaying) {
             NowPlayingView()
         }

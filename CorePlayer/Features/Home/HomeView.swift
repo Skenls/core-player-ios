@@ -85,7 +85,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 34)
+                .padding(.bottom, 120)
             }
             .refreshable {
                 await vm.load(api: api, force: true)
@@ -115,7 +115,7 @@ struct HomeView: View {
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     Circle()
-                        .fill(CoreColors.accent)
+                        .fill(Color.white)
                         .frame(width: 7, height: 7)
                         .offset(y: 8)
                 }
@@ -174,13 +174,10 @@ struct HomeView: View {
     private var favoritesBanner: some View {
         FavoriteBanner(
             count: vm.favoriteTracks.count,
+            coverArt: vm.favoriteTracks.first?.coverArt,
             onPlay: {
                 guard !vm.favoriteTracks.isEmpty else { return }
                 player.playAll(vm.favoriteTracks, source: "Избранное")
-            },
-            onShuffle: {
-                guard !vm.favoriteTracks.isEmpty else { return }
-                player.playAll(vm.favoriteTracks, source: "Избранное", shuffled: true)
             }
         )
     }

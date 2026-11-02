@@ -1,5 +1,8 @@
 import SwiftUI
 
+// Full-screen Now Playing, matching the Android NowPlayingBottomSheet layout:
+// blurred cover background, artwork <-> lyrics crossfade, info + scrubber + controls.
+
 struct NowPlayingView: View {
     @Environment(\.presentationMode) var presentationMode
     @Environment(\.api) var api
@@ -24,7 +27,10 @@ struct NowPlayingView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear { loadLyrics() }
-        .onChange(of: player.currentTrack?.id) { _ in loadLyrics() }
+        .onChange(of: player.currentTrack?.id) { _ in
+            showLyrics = false
+            loadLyrics()
+        }
         .sheet(isPresented: $showAddToPlaylist) {
             if let track = player.currentTrack {
                 AddToPlaylistSheet(track: track)
@@ -38,79 +44,39 @@ struct NowPlayingView: View {
                 Color.black.ignoresSafeArea()
             } else if settings.background == .cover, let cover = player.currentTrack?.coverArt {
                 BlurredCoverBackground(coverID: cover).ignoresSafeArea()
-                Color.black.opacity(0.38).ignoresSafeArea()
+                (settings.amoled ? Color.black : CoreColors.background)
+                    .opacity(0.82)
+                    .ignoresSafeArea()
             } else {
-                LinearGradient(
-                    colors: [CoreColors.background, Color.black],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+                (settings.amoled ? Color.black : CoreColors.background)
+                    .ignoresSafeArea()
             }
         }
     }
 
-    func portraitLayout(_ geo: GeometryProxy) -> some View {
-        let cover = max(120, min(geo.size.width - 72, geo.size.height * 0.38))
-        return ScrollView(showsIndicators: false) {
-            VStack(spacing: 14) {
-                header
-                coverView(size: cover).padding(.top, 6)
-                titles.padding(.top, 4)
-                progress
-                controls.padding(.vertical, 4)
-                bottomBar
-                if showLyrics {
-                    lyricsSection(minHeight: 260)
-                }
-            }
-            .padding(.horizontal, 22)
-            .padding(.bottom, 28)
-        }
-    }
+    // MARK: - Top bar
 
-    func wideLayout(_ geo: GeometryProxy) -> some View {
-        let cover = max(140, min(geo.size.width * 0.32, geo.size.height * 0.44))
-        return HStack(spacing: 26) {
-            VStack(spacing: 12) {
-                header
-                coverView(size: cover)
-                titles
-                progress
-                controls
-                bottomBar
-            }
-            .frame(width: geo.size.width * 0.44)
-
-            lyricsSection(minHeight: geo.size.height - 80)
-                .frame(maxWidth: .infinity)
-        }
-        .padding(.horizontal, 26)
-        .padding(.vertical, 16)
-    }
-
-    var header: some View {
+    var topBar: some View {
         HStack {
             Button {
                 presentationMode.wrappedValue.dismiss()
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 40, height: 40)
-                    .background(CoreColors.surface.opacity(0.65))
-                    .clipShape(Circle())
+                    .font(.system(size: 24, weight: .regular))
+                    .foregroundColor(CoreColors.textPrimary)
             }
             .buttonStyle(.plain)
+            .frame(width: 44)
 
             Spacer()
 
             VStack(spacing: 2) {
                 Text("ИГРАЕТ ИЗ")
-                    .font(.system(size: 9, weight: .bold))
-                    .tracking(1.2)
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(1.0)
                     .foregroundColor(CoreColors.textSecondary)
-                Text(player.sourceTitle ?? "Core Player")
-                    .font(.system(size: 12, weight: .medium))
+                Text(sourceLabel)
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.white)
                     .lineLimit(1)
             }
@@ -118,19 +84,107 @@ struct NowPlayingView: View {
             Spacer()
 
             Button {
+                showAddToPlaylist = true
+            } label: {
+                Image(systemName: "text.badge.plus")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) { showLyrics.toggle() }
+            } label: {
+                Image(systemName: showLyrics ? "text.alignleft" : "text.alignleft")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(showLyrics ? .white : CoreColors.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 8)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private var sourceLabel: String {
+        if let album = player.currentTrack?.displayAlbum, !album.isEmpty {
+            return "Альбом «\(album)»"
+        }
+        return "Медиатека"
+    }
+
+    // MARK: - Cover / lyrics area
+
+    var coverArea: some View {
+        GeometryReader { geo in
+            let side = max(120, min(geo.size.width * 0.85, geo.size.height * 0.86))
+            ZStack {
+                if showLyrics {
+                    SyncedLyricsView(
+                        lines: lines,
+                        position: player.position,
+                        onSeek: { player.seek($0) },
+                        isLoading: lyricsLoading,
+                        errorMessage: lyricsError ?? (lyrics == nil ? nil : "Текст песни недоступен"),
+                        onRetry: { loadLyrics() }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    cover(side: side)
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: showLyrics)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func cover(side: CGFloat) -> some View {
+        CoverView(
+            coverID: player.currentTrack?.coverArt,
+            size: side,
+            cornerRadius: 24,
+            pixelSize: 1200
+        )
+        .background(CoreColors.surfaceVariant)
+        .shadow(color: Color.black.opacity(0.8), radius: 22, x: 0, y: 12)
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.3)) { showLyrics = true }
+        }
+    }
+
+    // MARK: - Track info
+
+    var titles: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(player.currentTrack?.title ?? "Нет активного трека")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                Text(player.currentTrack?.displayArtist ?? "Неизвестный исполнитель")
+                    .font(.system(size: 16))
+                    .foregroundColor(CoreColors.textSecondary)
+                    .lineLimit(1)
+                if let error = player.errorMessage {
+                    Text(error)
+                        .font(.system(size: 11))
+                        .foregroundColor(.red)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
                 if let track = player.currentTrack {
                     Task { await favorites.toggle(track: track) }
                 }
             } label: {
                 Image(systemName: favorite ? "heart.fill" : "heart")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(favorite ? CoreColors.accent : .white)
-                    .frame(width: 40, height: 40)
-                    .background(CoreColors.surface.opacity(0.65))
-                    .clipShape(Circle())
+                    .font(.system(size: 26, weight: .medium))
+                    .foregroundColor(favorite ? CoreColors.favorite : CoreColors.textSecondary)
             }
             .buttonStyle(.plain)
         }
+        .frame(maxWidth: .infinity)
     }
 
     var favorite: Bool {
@@ -138,39 +192,41 @@ struct NowPlayingView: View {
         return favorites.isFavorite(track)
     }
 
-    func coverView(size: CGFloat) -> some View {
-        CoverView(
-            coverID: player.currentTrack?.coverArt,
-            size: size,
-            cornerRadius: 20,
-            pixelSize: 1200
-        )
-        .shadow(color: Color.black.opacity(0.55), radius: 26, x: 0, y: 16)
+    // MARK: - Layouts
+
+    func portraitLayout(_ geo: GeometryProxy) -> some View {
+        VStack(spacing: 0) {
+            topBar
+            coverArea
+                .padding(.horizontal, 24)
+                .padding(.vertical, 8)
+            VStack(spacing: 14) {
+                titles
+                NowPlayingScrubber()
+                NowPlayingControls()
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    var titles: some View {
-        VStack(spacing: 5) {
-            Text(player.currentTrack?.title ?? "Ничего не играет")
-                .font(.system(size: 22, weight: .bold))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-            Text(player.currentTrack?.displayArtist ?? " ")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(CoreColors.textSecondary)
-                .lineLimit(1)
-            if let album = player.currentTrack?.displayAlbum, !album.isEmpty {
-                Text(album)
-                    .font(.system(size: 12))
-                    .foregroundColor(CoreColors.textSecondary.opacity(0.75))
-                    .lineLimit(1)
+    func wideLayout(_ geo: GeometryProxy) -> some View {
+        HStack(spacing: 26) {
+            coverArea
+                .padding(.horizontal, 24)
+
+            VStack(spacing: 18) {
+                topBar
+                titles
+                NowPlayingScrubber()
+                NowPlayingControls()
+                Spacer(minLength: 0)
             }
-            if let error = player.errorMessage {
-                Text(error)
-                    .font(.system(size: 11))
-                    .foregroundColor(.red)
-                    .lineLimit(2)
-            }
+            .frame(width: geo.size.width * 0.46)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

@@ -84,10 +84,10 @@ struct ArtistDetailView: View {
                         Text("Слушать")
                     }
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(.black)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 11)
-                    .background(CoreGradients.accent)
+                    .background(Color.white)
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)

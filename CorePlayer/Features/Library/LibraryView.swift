@@ -17,7 +17,10 @@ struct LibraryView: View {
                 }
             } else {
                 ScrollView {
-                    if tab == .favorites { favoriteList } else { playlistList }
+                    VStack(alignment: .leading) {
+                        if tab == .favorites { favoriteList } else { playlistList }
+                    }
+                    .padding(.bottom, 120)
                 }
             }
         }
@@ -42,9 +45,13 @@ struct LibraryView: View {
                 Button { player.playAll(vm.favoriteTracks, source: "Избранное") } label: {
                     Image(systemName: "play.fill")
                 }
+                .buttonStyle(.plain)
+                .foregroundColor(CoreColors.textPrimary)
                 Button { player.playAll(vm.favoriteTracks, source: "Избранное", shuffled: true) } label: {
                     Image(systemName: "shuffle")
                 }
+                .buttonStyle(.plain)
+                .foregroundColor(CoreColors.textPrimary)
             }
             .padding(.vertical, 4)
             ForEach(vm.favoriteTracks) { track in
@@ -55,8 +62,21 @@ struct LibraryView: View {
         }
     }
     @ViewBuilder private var playlistList: some View {
-        Button("Создать плейлист") { showCreate = true }
-            .padding(.vertical, 8)
+        Button {
+            showCreate = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus")
+                Text("Создать плейлист")
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(.black)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Capsule().fill(Color.white))
+        }
+        .buttonStyle(.plain)
+        .padding(.vertical, 6)
         ForEach(vm.playlists) { playlist in
             NavigationLink(destination: PlaylistDetailView(playlistID: playlist.id, initialTitle: playlist.name)) {
                 HStack {

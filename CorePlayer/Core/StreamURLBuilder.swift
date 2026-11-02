@@ -15,10 +15,11 @@ enum StreamURLBuilder {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         var items: [URLQueryItem] = []
 
+        // Android parity: "auto" streams the raw file with no extra params.
         if let format = codec.queryValue {
             items.append(URLQueryItem(name: "format", value: format))
+            items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
         }
-        items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
         if let sessionID = sessionID, !sessionID.isEmpty {
             items.append(URLQueryItem(name: "session_id", value: sessionID))
         }
