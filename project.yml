@@ -1,0 +1,54 @@
+name: CorePlayer
+options:
+  bundleIdPrefix: com.coreplayer
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    ENABLE_BITCODE: NO
+    CLANG_ENABLE_MODULES: YES
+
+targets:
+  CorePlayer:
+    type: application
+    platform: iOS
+    sources:
+      - path: CorePlayer
+        excludes:
+          - "Resources/Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coreplayer.app
+        PRODUCT_NAME: CorePlayer
+        INFOPLIST_FILE: CorePlayer/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        ENABLE_PREVIEWS: YES
+    scheme:
+      testTargets:
+        - CorePlayerTests
+      gatherCoverageData: false
+
+  CorePlayerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CorePlayerTests
+    dependencies:
+      - target: CorePlayer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coreplayer.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/CorePlayer.app/CorePlayer"
+        BUNDLE_LOADER: "$(TEST_HOST)"
