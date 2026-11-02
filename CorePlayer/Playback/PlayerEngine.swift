@@ -5,8 +5,6 @@ final class PlayerEngine {
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
     private var itemStatusObserver: NSKeyValueObservation?
-    private var itemStallObserver: NSKeyValueObservation?
-
     var onTime: ((Double, Double) -> Void)?
     var onEnded: (() -> Void)?
     var onError: ((Error?) -> Void)?
@@ -15,10 +13,17 @@ final class PlayerEngine {
     private static let stallKickDelay: Double = 8
 
     private var stallKickWork: DispatchWorkItem?
+    private var playerStallObserver: NSKeyValueObservation?
 
     init() {
         player.actionAtItemEnd = .pause
         player.automaticallyWaitsToMinimizeStalling = true
+
+        playerStallObserver = player.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] player, _ in
+            DispatchQueue.main.async {
+                self?.handleTimeControl(player.timeControlStatus)
+            }
+        }
 
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
@@ -46,7 +51,6 @@ final class PlayerEngine {
     func load(url: URL) {
         player.pause()
         itemStatusObserver?.invalidate()
-        itemStallObserver?.invalidate()
         cancelStallKick()
 
         let item = AVPlayerItem(url: url)
@@ -67,17 +71,10 @@ final class PlayerEngine {
                 }
             }
         }
-
-        // Network-hiccup watchdog: if AVPlayer stays in "waiting to play at
-        // specified rate" for 8s (minimize stalling), nudge it back to life.
-        itemStallObserver = item.observe(\.timeControlStatus, options: [.new]) { [weak self] item, _ in
-            DispatchQueue.main.async {
-                self?.handleTimeControl(item.timeControlStatus)
-            }
-        }
     }
 
     private func handleTimeControl(_ status: AVPlayer.TimeControlStatus) {
+        guard player.currentItem != nil else { return }
         switch status {
         case .waitingToPlayAtSpecifiedRate:
             scheduleStallKick()
@@ -127,8 +124,6 @@ final class PlayerEngine {
         player.pause()
         itemStatusObserver?.invalidate()
         itemStatusObserver = nil
-        itemStallObserver?.invalidate()
-        itemStallObserver = nil
         cancelStallKick()
         player.replaceCurrentItem(with: nil)
     }
@@ -151,7 +146,6 @@ final class PlayerEngine {
             NotificationCenter.default.removeObserver(endObserver)
         }
         itemStatusObserver?.invalidate()
-        itemStallObserver?.invalidate()
         cancelStallKick()
     }
 }

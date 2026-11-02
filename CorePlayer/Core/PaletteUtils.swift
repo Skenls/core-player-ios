@@ -1,5 +1,6 @@
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import SwiftUI
 import UIKit
 
 // iOS port of the Android adaptive bubble palette: dominant + vivid color

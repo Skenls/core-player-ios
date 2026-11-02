@@ -30,7 +30,6 @@ struct SyncedLyricsView: View {
             scrollBody
         }
     }
-
     // MARK: - States
 
     private var loading: some View {
@@ -134,11 +133,9 @@ struct SyncedLyricsView: View {
 
     // MARK: - Line
 
-    @ViewBuilder
     private func lyricRow(_ line: LyricLine) -> some View {
         let active = line.id == activeIndexValue
-        let alpha: Double
-        if active { alpha = 1 } else if !isAutoFocusActive { alpha = 0.72 } else { alpha = 0.32 }
+        let alpha: Double = active ? 1 : (isAutoFocusActive ? 0.32 : 0.72)
         let blur: CGFloat = isAutoFocusActive && !active ? 2.5 : 0
 
         Text(line.text.isEmpty ? "♪" : line.text)
