@@ -138,7 +138,7 @@ struct SyncedLyricsView: View {
         let alpha: Double = active ? 1 : (isAutoFocusActive ? 0.32 : 0.72)
         let blur: CGFloat = isAutoFocusActive && !active ? 2.5 : 0
 
-        Text(line.text.isEmpty ? "♪" : line.text)
+        return Text(line.text.isEmpty ? "♪" : line.text)
             .font(.system(size: active ? 23 : 19, weight: active ? .bold : .medium))
             .lineSpacing(active ? 9 : 7)
             .foregroundColor(Color.white.opacity(alpha))

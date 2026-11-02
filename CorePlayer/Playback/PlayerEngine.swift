@@ -89,8 +89,7 @@ final class PlayerEngine {
         guard stallKickWork == nil, player.currentItem != nil else { return }
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            if self.player.timeControlStatus == .waitingToPlayAtSpecifiedRate,
-               self.player.currentItem?.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+            if self.player.timeControlStatus == .waitingToPlayAtSpecifiedRate {
                 self.player.pause()
                 self.player.play()
                 // Second strike: schedule one more kick in case the first didn't help.
