@@ -8,8 +8,11 @@ struct LibraryView: View {
     @State private var tab: LibraryTab = .favorites
     @State private var showCreate = false
     var body: some View {
-        VStack(spacing: 10) {
-            Text("Медиатека").font(.system(size: 28, weight: .bold))
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Медиатека")
+                .font(.system(size: 28, weight: .bold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
             SegmentedPicker(items: LibraryTab.allCases, title: { $0.rawValue }, selection: $tab)
             if let error = vm.errorMessage, vm.favoriteTracks.isEmpty, vm.playlists.isEmpty {
                 ErrorStateView(message: error) {
@@ -34,8 +37,21 @@ struct LibraryView: View {
         }
     }
     @ViewBuilder private var favoriteList: some View {
+        FavoriteBanner(
+            count: vm.favoriteTracks.count,
+            coverArt: vm.favoriteTracks.first?.coverArt,
+            onPlay: {
+                guard !vm.favoriteTracks.isEmpty else { return }
+                player.playAll(vm.favoriteTracks, source: "Избранное")
+            }
+        )
+        .padding(.vertical, 6)
+
         if vm.favoriteTracks.isEmpty {
-            Text("Нет избранных треков").foregroundColor(CoreColors.textSecondary).padding(30)
+            Text("Нет избранных треков")
+                .foregroundColor(CoreColors.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 40)
         } else {
             HStack {
                 Text(Formatters.trackCount(vm.favoriteTracks.count))

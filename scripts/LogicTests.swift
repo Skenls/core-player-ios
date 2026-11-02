@@ -93,12 +93,21 @@ struct LogicTests {
         let decodedTrack = try! JSONDecoder().decode(TrackDto.self, from: trackJSON)
         expect(decodedTrack.isFavorite, "decodes is_favorite")
         expect(decodedTrack.durationSeconds == 200, "duration is seconds")
+        let starredBoolJSON = #"{"id":"t2","title":"Song2","starred":true}"#.data(using: .utf8)!
+        let decodedStarredBool = try! JSONDecoder().decode(TrackDto.self, from: starredBoolJSON)
+        expect(decodedStarredBool.isFavorite, "decodes boolean starred")
+        let starredStrJSON = #"{"id":"t3","title":"Song3","starred":"2026-10-08T12:00:00Z"}"#.data(using: .utf8)!
+        let decodedStarredStr = try! JSONDecoder().decode(TrackDto.self, from: starredStrJSON)
+        expect(decodedStarredStr.isFavorite, "decodes string starred")
         let favJSON = #"{"track_ids":["a","b"],"album_ids":["x"]}"#.data(using: .utf8)!
         let favs = try! JSONDecoder().decode(FavoritesIdsResponse.self, from: favJSON)
         expect(favs.trackIDs.count == 2 && favs.albumIDs == ["x"], "decodes favorites ids")
         let searchJSON = #"{"tracks":[{"id":"t","title":"T"}],"albums":[],"artists":[]}"#.data(using: .utf8)!
         let search = try! JSONDecoder().decode(SearchResponse.self, from: searchJSON)
         expect(search.tracks.count == 1, "decodes search response")
+        let subsonicSearchJSON = #"{"results":{"song":[{"id":"s1","title":"S"}],"album":[{"id":"a1","name":"A"}],"artist":[{"id":"ar1","name":"Art"}]}}"#.data(using: .utf8)!
+        let subsonicSearch = try! JSONDecoder().decode(SearchResponse.self, from: subsonicSearchJSON)
+        expect(subsonicSearch.tracks.count == 1 && subsonicSearch.albums.count == 1 && subsonicSearch.artists.count == 1, "decodes Subsonic singular searchResult3")
 
         print("AudioCodec")
         expect(AudioCodec.auto.queryValue == nil, "auto has no query value")

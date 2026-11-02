@@ -5,25 +5,17 @@ final class PlayerEngine {
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
     private var itemStatusObserver: NSKeyValueObservation?
+    private var itemLikelyObserver: NSKeyValueObservation?
+    private var itemBufferEmptyObserver: NSKeyValueObservation?
+    private var stallObserver: NSObjectProtocol?
     var onTime: ((Double, Double) -> Void)?
     var onEnded: (() -> Void)?
     var onError: ((Error?) -> Void)?
     var onReady: ((Double) -> Void)?
 
-    private static let stallKickDelay: Double = 8
-
-    private var stallKickWork: DispatchWorkItem?
-    private var playerStallObserver: NSKeyValueObservation?
-
     init() {
         player.actionAtItemEnd = .pause
         player.automaticallyWaitsToMinimizeStalling = true
-
-        playerStallObserver = player.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] player, _ in
-            DispatchQueue.main.async {
-                self?.handleTimeControl(player.timeControlStatus)
-            }
-        }
 
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
@@ -46,16 +38,30 @@ final class PlayerEngine {
                   item === self.player.currentItem else { return }
             self.onEnded?()
         }
+
+        stallObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemPlaybackStalled,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let item = notification.object as? AVPlayerItem,
+                  item === self.player.currentItem else { return }
+            // Playback stalled: AVPlayer buffers automatically.
+            // Re-trigger play once buffer catches up.
+            if item.isPlaybackLikelyToKeepUp {
+                self.player.play()
+            }
+        }
     }
 
     func load(url: URL) {
         player.pause()
-        itemStatusObserver?.invalidate()
-        cancelStallKick()
+        cleanupItemObservers()
 
         let item = AVPlayerItem(url: url)
-        // Buffer well ahead so short server hiccups do not interrupt playback.
-        item.preferredForwardBufferDuration = 30
+        // 0 lets AVPlayer start quickly and buffer continuously without stalling on large files.
+        item.preferredForwardBufferDuration = 0
         player.replaceCurrentItem(with: item)
 
         itemStatusObserver = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
@@ -71,39 +77,24 @@ final class PlayerEngine {
                 }
             }
         }
-    }
 
-    private func handleTimeControl(_ status: AVPlayer.TimeControlStatus) {
-        guard player.currentItem != nil else { return }
-        switch status {
-        case .waitingToPlayAtSpecifiedRate:
-            scheduleStallKick()
-        case .playing, .paused:
-            cancelStallKick()
-        @unknown default:
-            break
-        }
-    }
-
-    private func scheduleStallKick() {
-        guard stallKickWork == nil, player.currentItem != nil else { return }
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            if self.player.timeControlStatus == .waitingToPlayAtSpecifiedRate {
-                self.player.pause()
-                self.player.play()
-                // Second strike: schedule one more kick in case the first didn't help.
-                self.stallKickWork = nil
-                self.scheduleStallKick()
+        itemLikelyObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if item.isPlaybackLikelyToKeepUp && self.player.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+                    self.player.play()
+                }
             }
         }
-        stallKickWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.stallKickDelay, execute: work)
     }
 
-    private func cancelStallKick() {
-        stallKickWork?.cancel()
-        stallKickWork = nil
+    private func cleanupItemObservers() {
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
+        itemLikelyObserver?.invalidate()
+        itemLikelyObserver = nil
+        itemBufferEmptyObserver?.invalidate()
+        itemBufferEmptyObserver = nil
     }
 
     func play() {
@@ -121,9 +112,7 @@ final class PlayerEngine {
 
     func stop() {
         player.pause()
-        itemStatusObserver?.invalidate()
-        itemStatusObserver = nil
-        cancelStallKick()
+        cleanupItemObservers()
         player.replaceCurrentItem(with: nil)
     }
 
@@ -144,7 +133,9 @@ final class PlayerEngine {
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
         }
-        itemStatusObserver?.invalidate()
-        cancelStallKick()
+        if let stallObserver {
+            NotificationCenter.default.removeObserver(stallObserver)
+        }
+        cleanupItemObservers()
     }
 }

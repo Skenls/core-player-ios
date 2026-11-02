@@ -79,7 +79,7 @@ struct HomeView: View {
                         .padding(.top, 60)
                     } else {
                         recentSection
-                        favoritesBanner
+                        favoritesSection
                         playlistsSection
                         artistsSection
                     }
@@ -109,21 +109,9 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 2) {
-                    Text("core")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 7, height: 7)
-                        .offset(y: 8)
-                }
-                Text("ТВОЙ МУЗЫКАЛЬНЫЙ СЕРВЕР")
-                    .font(.system(size: 9, weight: .semibold))
-                    .tracking(2.2)
-                    .foregroundColor(CoreColors.textSecondary)
-            }
+            Text("core")
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(.white)
 
             Spacer()
 
@@ -154,8 +142,8 @@ struct HomeView: View {
                 )
             } else {
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 150), spacing: 12)],
-                    spacing: 12
+                    columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                    spacing: 10
                 ) {
                     ForEach(recentTracks.prefix(8)) { track in
                         RecentCard(track: track) {
@@ -171,15 +159,28 @@ struct HomeView: View {
         }
     }
 
-    private var favoritesBanner: some View {
-        FavoriteBanner(
-            count: vm.favoriteTracks.count,
-            coverArt: vm.favoriteTracks.first?.coverArt,
-            onPlay: {
-                guard !vm.favoriteTracks.isEmpty else { return }
-                player.playAll(vm.favoriteTracks, source: "Избранное")
+    private var favoritesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            NavigationLink(destination: LibraryView()) {
+                HStack {
+                    SectionHeader(title: "Избранное")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(CoreColors.textSecondary)
+                }
             }
-        )
+            .buttonStyle(.plain)
+
+            FavoriteBanner(
+                count: vm.favoriteTracks.count,
+                coverArt: vm.favoriteTracks.first?.coverArt,
+                onPlay: {
+                    guard !vm.favoriteTracks.isEmpty else { return }
+                    player.playAll(vm.favoriteTracks, source: "Избранное")
+                }
+            )
+        }
     }
 
     private var playlistsSection: some View {

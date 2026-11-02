@@ -221,9 +221,8 @@ webplayer-ios/
 
 ### 6.1 Движок (PlayerEngine)
 - `AVPlayer`, `automaticallyWaitsToMinimizeStalling = true`, `actionAtItemEnd = .pause`.
-- Каждый item получает `preferredForwardBufferDuration = 30` — буфер 30 с вперёд, короткие сетевые провалы не рвут звук.
+- Потоковое воспроизведение без искусственного ограничения буфера (`preferredForwardBufferDuration = 0`), наблюдение за `isPlaybackLikelyToKeepUp` и событием `AVPlayerItemPlaybackStalled` для бесшовного возобновления звука без зависаний.
 - Time-observer каждые 0.5 с → позиция/длительность; `AVPlayerItemDidPlayToEndTime` → `handleEnded`.
-- KVO `AVPlayer.timeControlStatus` → watchdog: если 8 секунд подряд `waitingToPlayAtSpecifiedRate` (сетевая пробка) — мягкий рестарт `pause()+play()` (и не более одного повторного kick). Это лечит эффект «постоянно пытается подгружать».
 - `.failed` у item: одна автоматическая перезагрузка через 2 с; повторный отказ → сообщение об ошибке.
 
 ### 6.2 Логика PlayerStore
@@ -250,8 +249,8 @@ webplayer-ios/
 
 ### 6.5 Что сделано против «постоянных прерываний»
 1. Prefetch только следующего трека (раньше качали и текущий — двойной трафик на сервере).
-2. Буфер вперёд 30 с на каждый трек.
-3. Watchdog «waiting» 8 с → kick (+ один повторный kick).
+2. Потоковое воспроизведение (`preferredForwardBufferDuration = 0`) с автовозобновлением при `isPlaybackLikelyToKeepUp`.
+3. Убран деструктивный watchdog с принудительными `pause()+play()`, сбрасывавшими буферизацию.
 4. `auto` теперь шлёт URL без лишних параметров: сырой файл с честным Content-Length (Android parity).
 5. `estimateContentLength=true` только при явном codec (mp3/flac) — на транскоде.
 

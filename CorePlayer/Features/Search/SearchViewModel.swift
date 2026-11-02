@@ -13,7 +13,12 @@ final class SearchViewModel: ObservableObject {
         self.query = query
         task?.cancel()
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { results = .empty; isLoading = false; errorMessage = nil; return }
+        guard trimmed.count >= 2 else {
+            results = .empty
+            isLoading = false
+            errorMessage = nil
+            return
+        }
         task = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }

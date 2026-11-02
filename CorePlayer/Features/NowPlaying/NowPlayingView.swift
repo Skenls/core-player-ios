@@ -180,7 +180,7 @@ struct NowPlayingView: View {
             } label: {
                 Image(systemName: favorite ? "heart.fill" : "heart")
                     .font(.system(size: 26, weight: .medium))
-                    .foregroundColor(favorite ? CoreColors.favorite : CoreColors.textSecondary)
+                    .foregroundColor(favorite ? CoreColors.favorite : .white)
             }
             .buttonStyle(.plain)
         }

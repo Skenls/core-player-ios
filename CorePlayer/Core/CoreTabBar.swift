@@ -34,28 +34,40 @@ enum AppTab: String, CaseIterable, Identifiable, Hashable {
 
 struct CoreTabBar: View {
     @Binding var selection: AppTab
+    @Namespace private var tabAnimation
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases) { tab in
                 let selected = selection == tab
                 Button {
-                    selection = tab
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                        selection = tab
+                    }
                 } label: {
                     VStack(spacing: 3) {
                         Image(systemName: selected ? tab.selectedIcon : tab.icon)
                             .font(.system(size: 20, weight: .regular))
                         Text(tab.title)
-                            .font(.system(size: 11, weight: selected ? .medium : .regular))
+                            .font(.system(size: 11, weight: selected ? .semibold : .regular))
                             .lineLimit(1)
                     }
                     .foregroundColor(selected ? CoreColors.textPrimary : CoreColors.textSecondary)
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 4)
+                    .background {
+                        if selected {
+                            Capsule()
+                                .fill(Color.white.opacity(0.12))
+                                .matchedGeometryEffect(id: "activeTabBubble", in: tabAnimation)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 8)
         .frame(height: 56)
         .background(alignment: .bottom) {
             Rectangle()

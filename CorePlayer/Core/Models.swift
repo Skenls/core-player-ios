@@ -29,9 +29,10 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
     let starred: String?
     let isFavoriteFlag: Bool?
 
-    enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
         case id, title, artist, album, duration, starred
         case artistId, albumId, coverArt, trackNumber, discNumber
+        case track
         case isFavoriteFlag = "is_favorite"
     }
 
@@ -63,8 +64,47 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
         self.isFavoriteFlag = isFavoriteFlag
     }
 
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = (try? c.decode(String.self, forKey: .title)) ?? ""
+        artist = try? c.decode(String.self, forKey: .artist)
+        artistId = try? c.decode(String.self, forKey: .artistId)
+        album = try? c.decode(String.self, forKey: .album)
+        albumId = try? c.decode(String.self, forKey: .albumId)
+        coverArt = try? c.decode(String.self, forKey: .coverArt)
+        duration = try? c.decode(Int.self, forKey: .duration)
+        trackNumber = (try? c.decode(Int.self, forKey: .trackNumber))
+            ?? (try? c.decode(Int.self, forKey: .track))
+        discNumber = try? c.decode(Int.self, forKey: .discNumber)
+        if let s = try? c.decode(String.self, forKey: .starred) {
+            starred = s
+        } else if let b = try? c.decode(Bool.self, forKey: .starred) {
+            starred = b ? "true" : nil
+        } else {
+            starred = nil
+        }
+        isFavoriteFlag = try? c.decode(Bool.self, forKey: .isFavoriteFlag)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(title, forKey: .title)
+        try c.encodeIfPresent(artist, forKey: .artist)
+        try c.encodeIfPresent(artistId, forKey: .artistId)
+        try c.encodeIfPresent(album, forKey: .album)
+        try c.encodeIfPresent(albumId, forKey: .albumId)
+        try c.encodeIfPresent(coverArt, forKey: .coverArt)
+        try c.encodeIfPresent(duration, forKey: .duration)
+        try c.encodeIfPresent(trackNumber, forKey: .trackNumber)
+        try c.encodeIfPresent(discNumber, forKey: .discNumber)
+        try c.encodeIfPresent(starred, forKey: .starred)
+        try c.encodeIfPresent(isFavoriteFlag, forKey: .isFavoriteFlag)
+    }
+
     var isFavorite: Bool {
-        isFavoriteFlag ?? (starred != nil)
+        isFavoriteFlag == true || (starred != nil && starred != "false")
     }
 
     var displayArtist: String {
@@ -139,6 +179,39 @@ struct ArtistWithAlbumsDto: Codable, Identifiable, Equatable {
     let artistImageUrl: String?
     let albums: [AlbumDto]?
 
+    private enum CodingKeys: String, CodingKey {
+        case id, name, albumCount, coverArt, artistImageUrl, albums, album
+    }
+
+    init(id: String, name: String, albumCount: Int? = nil, coverArt: String? = nil, artistImageUrl: String? = nil, albums: [AlbumDto]? = nil) {
+        self.id = id
+        self.name = name
+        self.albumCount = albumCount
+        self.coverArt = coverArt
+        self.artistImageUrl = artistImageUrl
+        self.albums = albums
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        albumCount = try? c.decode(Int.self, forKey: .albumCount)
+        coverArt = try? c.decode(String.self, forKey: .coverArt)
+        artistImageUrl = try? c.decode(String.self, forKey: .artistImageUrl)
+        albums = (try? c.decode([AlbumDto].self, forKey: .album)) ?? (try? c.decode([AlbumDto].self, forKey: .albums))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encodeIfPresent(albumCount, forKey: .albumCount)
+        try c.encodeIfPresent(coverArt, forKey: .coverArt)
+        try c.encodeIfPresent(artistImageUrl, forKey: .artistImageUrl)
+        try c.encodeIfPresent(albums, forKey: .albums)
+    }
+
     var effectiveCover: String? { coverArt ?? artistImageUrl ?? id }
 }
 
@@ -149,6 +222,42 @@ struct PlaylistWithSongsDto: Codable, Identifiable, Equatable {
     let coverArt: String?
     let created: String?
     let entry: [TrackDto]?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, songCount, coverArt, created, entry, tracks, song, songs
+    }
+
+    init(id: String, name: String, songCount: Int? = nil, coverArt: String? = nil, created: String? = nil, entry: [TrackDto]? = nil) {
+        self.id = id
+        self.name = name
+        self.songCount = songCount
+        self.coverArt = coverArt
+        self.created = created
+        self.entry = entry
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        songCount = try? c.decode(Int.self, forKey: .songCount)
+        coverArt = try? c.decode(String.self, forKey: .coverArt)
+        created = try? c.decode(String.self, forKey: .created)
+        entry = (try? c.decode([TrackDto].self, forKey: .entry))
+            ?? (try? c.decode([TrackDto].self, forKey: .tracks))
+            ?? (try? c.decode([TrackDto].self, forKey: .song))
+            ?? (try? c.decode([TrackDto].self, forKey: .songs))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encodeIfPresent(songCount, forKey: .songCount)
+        try c.encodeIfPresent(coverArt, forKey: .coverArt)
+        try c.encodeIfPresent(created, forKey: .created)
+        try c.encodeIfPresent(entry, forKey: .entry)
+    }
 
     var tracks: [TrackDto] { entry ?? [] }
 }
@@ -261,7 +370,10 @@ struct SearchResponse: Decodable, Equatable {
     let artists: [ArtistDto]
 
     private enum CodingKeys: String, CodingKey {
-        case tracks, songs, albums, artists, results
+        case tracks, songs, song, track
+        case albums, album
+        case artists, artist
+        case results
     }
 
     init(tracks: [TrackDto] = [], albums: [AlbumDto] = [], artists: [ArtistDto] = []) {
@@ -276,13 +388,19 @@ struct SearchResponse: Decodable, Equatable {
         if let nested = try? root.nestedContainer(keyedBy: CodingKeys.self, forKey: .results) {
             c = nested
         } else {
-            c = try decoder.container(keyedBy: CodingKeys.self)
+            c = root
         }
         tracks = (try? c.decode([TrackDto].self, forKey: .tracks))
             ?? (try? c.decode([TrackDto].self, forKey: .songs))
+            ?? (try? c.decode([TrackDto].self, forKey: .song))
+            ?? (try? c.decode([TrackDto].self, forKey: .track))
             ?? []
-        albums = (try? c.decode([AlbumDto].self, forKey: .albums)) ?? []
-        artists = (try? c.decode([ArtistDto].self, forKey: .artists)) ?? []
+        albums = (try? c.decode([AlbumDto].self, forKey: .albums))
+            ?? (try? c.decode([AlbumDto].self, forKey: .album))
+            ?? []
+        artists = (try? c.decode([ArtistDto].self, forKey: .artists))
+            ?? (try? c.decode([ArtistDto].self, forKey: .artist))
+            ?? []
     }
 
     var isEmpty: Bool { tracks.isEmpty && albums.isEmpty && artists.isEmpty }
