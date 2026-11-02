@@ -90,7 +90,7 @@ struct SyncedLyricsView: View {
                 .padding(.top, 70)
             }
             .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
+                DragGesture(minimumDistance: 12)
                     .onChanged { _ in
                         userStartedScrolling()
                     }

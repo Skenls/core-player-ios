@@ -199,7 +199,12 @@ struct NowPlayingView: View {
             topBar
             coverArea
                 .padding(.horizontal, 24)
-                .padding(.vertical, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+
+            Spacer(minLength: 16)
+                .frame(maxHeight: 24)
+
             VStack(spacing: 14) {
                 titles
                 NowPlayingScrubber()

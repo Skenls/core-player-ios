@@ -56,6 +56,10 @@ struct SearchView: View {
         } else {
             ScrollView(showsIndicators: false) {
                 SearchResultsView(results: vm.results) { track, queue in
+                    let trimmed = vm.query.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        searchHistory.add(trimmed)
+                    }
                     player.play(track: track, in: queue, source: "Поиск")
                 }
                 .padding(.bottom, 120)
@@ -78,14 +82,33 @@ struct SearchView: View {
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], spacing: 8) {
                     ForEach(searchHistory.queries, id: \.self) { query in
-                        Button { vm.update(query: query, api: api) } label: {
-                            Text(query).font(.system(size: 12, weight: .medium)).lineLimit(1)
-                                .padding(.horizontal, 12).padding(.vertical, 8)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(CoreColors.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        HStack(spacing: 6) {
+                            Button {
+                                vm.update(query: query, api: api)
+                                searchHistory.add(query)
+                            } label: {
+                                Text(query)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .lineLimit(1)
+                                    .foregroundColor(CoreColors.textPrimary)
+                            }
+                            .buttonStyle(.plain)
+
+                            Spacer()
+
+                            Button {
+                                searchHistory.remove(query)
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(CoreColors.textSecondary)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.horizontal, 10).padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(CoreColors.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                 }
                 Spacer()

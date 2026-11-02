@@ -28,12 +28,15 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
     let discNumber: Int?
     let starred: String?
     let isFavoriteFlag: Bool?
+    let suffix: String?
+    let contentType: String?
 
     private enum CodingKeys: String, CodingKey {
         case id, title, artist, album, duration, starred
         case artistId, albumId, coverArt, trackNumber, discNumber
         case track
         case isFavoriteFlag = "is_favorite"
+        case suffix, contentType
     }
 
     init(
@@ -48,7 +51,9 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
         trackNumber: Int? = nil,
         discNumber: Int? = nil,
         starred: String? = nil,
-        isFavoriteFlag: Bool? = nil
+        isFavoriteFlag: Bool? = nil,
+        suffix: String? = nil,
+        contentType: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -62,6 +67,8 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
         self.discNumber = discNumber
         self.starred = starred
         self.isFavoriteFlag = isFavoriteFlag
+        self.suffix = suffix
+        self.contentType = contentType
     }
 
     init(from decoder: Decoder) throws {
@@ -85,6 +92,8 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
             starred = nil
         }
         isFavoriteFlag = try? c.decode(Bool.self, forKey: .isFavoriteFlag)
+        suffix = try? c.decode(String.self, forKey: .suffix)
+        contentType = try? c.decode(String.self, forKey: .contentType)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -101,6 +110,8 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
         try c.encodeIfPresent(discNumber, forKey: .discNumber)
         try c.encodeIfPresent(starred, forKey: .starred)
         try c.encodeIfPresent(isFavoriteFlag, forKey: .isFavoriteFlag)
+        try c.encodeIfPresent(suffix, forKey: .suffix)
+        try c.encodeIfPresent(contentType, forKey: .contentType)
     }
 
     var isFavorite: Bool {
@@ -119,6 +130,15 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
 
     var durationSeconds: Double {
         Double(duration ?? 0)
+    }
+
+    var isLossy: Bool {
+        guard let s = suffix?.lowercased() else { return false }
+        return s == "mp3" || s == "aac" || s == "m4a" || s == "ogg" || s == "opus"
+    }
+
+    var isFlac: Bool {
+        suffix?.lowercased() == "flac" || contentType?.lowercased() == "audio/flac"
     }
 }
 

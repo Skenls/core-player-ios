@@ -145,11 +145,11 @@ struct HomeView: View {
                     columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
                     spacing: 10
                 ) {
-                    ForEach(recentTracks.prefix(8)) { track in
+                    ForEach(recentTracks.prefix(4)) { track in
                         RecentCard(track: track) {
                             player.play(
                                 track: track,
-                                in: Array(recentTracks.prefix(8)),
+                                in: Array(recentTracks.prefix(4)),
                                 source: "Недавние"
                             )
                         }

@@ -3,7 +3,11 @@ name: Build unsigned IPA
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -39,3 +43,11 @@ jobs:
         with:
           name: CorePlayer-ipa
           path: CorePlayer.ipa
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: CorePlayer.ipa
+          prerelease: true
+          generate_release_notes: true

@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 @MainActor
 final class PlayerStore: ObservableObject {
@@ -32,6 +33,8 @@ final class PlayerStore: ObservableObject {
     private var wasPlayingBeforeInterruption = false
     private var lastNowPlayingUpdate = Date.distantPast
     private var configured = false
+    private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    private var currentCodec: AudioCodec = .auto
 
     init(
         api: APIClient,
@@ -65,6 +68,7 @@ final class PlayerStore: ObservableObject {
             if engineDuration > 0 {
                 self.duration = engineDuration
             }
+            self.endTransitionBackgroundTask()
             self.updateNowPlaying(force: true)
         }
 
@@ -214,6 +218,7 @@ final class PlayerStore: ObservableObject {
     }
 
     func stop() {
+        endTransitionBackgroundTask()
         retryWork?.cancel()
         retryWork = nil
         engine.stop()
@@ -230,6 +235,22 @@ final class PlayerStore: ObservableObject {
         audioSession.deactivate()
     }
 
+    // MARK: - Background Transition Safety
+
+    private func beginTransitionBackgroundTask() {
+        endTransitionBackgroundTask()
+        backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "TrackTransition") { [weak self] in
+            self?.endTransitionBackgroundTask()
+        }
+    }
+
+    private func endTransitionBackgroundTask() {
+        if backgroundTask != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
+        }
+    }
+
     // MARK: - Loading
 
     private func loadCurrent(isRetry: Bool = false) {
@@ -238,6 +259,7 @@ final class PlayerStore: ObservableObject {
             return
         }
 
+        beginTransitionBackgroundTask()
         retryWork?.cancel()
         retryWork = nil
         if !isRetry {
@@ -250,23 +272,33 @@ final class PlayerStore: ObservableObject {
         errorMessage = nil
         isLoading = true
 
-        engine.stop()
+        // Effective codec determination:
+        // 1. If user selected FLAC, but the track is natively lossy (e.g. MP3) or FLAC,
+        // fallback to .auto (original stream). Navidrome fails when asked to transcode MP3->FLAC,
+        // and streaming native FLAC without transcode eliminates ffmpeg piping/seek stalls.
+        let rawCodec = settings.codec
+        let codec: AudioCodec
+        if rawCodec == .flac && (track.isLossy || track.isFlac) {
+            codec = .auto
+        } else {
+            codec = rawCodec
+        }
+        currentCodec = codec
 
-        let codec = settings.codec
         let url: URL
         if let local = cache.localURL(trackID: track.id, codec: codec) {
             url = local
         } else if let remote = api.streamURL(trackID: track.id, codec: codec) {
             url = remote
         } else {
+            endTransitionBackgroundTask()
             isLoading = false
             errorMessage = "Не удалось построить ссылку на трек"
             return
         }
 
-        engine.load(url: url)
         audioSession.activate()
-        engine.play()
+        engine.load(url: url, autoPlay: true)
         isPlaying = true
 
         recent.add(track)
@@ -334,7 +366,15 @@ final class PlayerStore: ObservableObject {
     }
 
     private func handleError(_ error: Error?) {
+        // Fallback to original quality (.auto) if transcoding or specific codec failed
+        if currentCodec != .auto {
+            currentCodec = .auto
+            loadCurrent(isRetry: true)
+            return
+        }
+
         guard !didRetry else {
+            endTransitionBackgroundTask()
             isLoading = false
             isPlaying = false
             errorMessage = "Не удалось воспроизвести трек. Проверьте сервер и сеть."
@@ -349,7 +389,7 @@ final class PlayerStore: ObservableObject {
             self.loadCurrent(isRetry: true)
         }
         retryWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
     }
 
     // MARK: - Interruptions

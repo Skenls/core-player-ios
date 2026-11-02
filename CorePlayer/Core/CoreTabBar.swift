@@ -45,7 +45,7 @@ struct CoreTabBar: View {
                         selection = tab
                     }
                 } label: {
-                    VStack(spacing: 3) {
+                    VStack(spacing: 2) {
                         Image(systemName: selected ? tab.selectedIcon : tab.icon)
                             .font(.system(size: 20, weight: .regular))
                         Text(tab.title)
@@ -53,9 +53,8 @@ struct CoreTabBar: View {
                             .lineLimit(1)
                     }
                     .foregroundColor(selected ? CoreColors.textPrimary : CoreColors.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 4)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 14)
                     .background {
                         if selected {
                             Capsule()
@@ -63,6 +62,7 @@ struct CoreTabBar: View {
                                 .matchedGeometryEffect(id: "activeTabBubble", in: tabAnimation)
                         }
                     }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
             }

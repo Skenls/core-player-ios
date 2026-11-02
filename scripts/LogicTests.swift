@@ -89,10 +89,16 @@ struct LogicTests {
         expect(bare.items.count == 1, "decodes bare array")
 
         print("Models")
-        let trackJSON = #"{"id":"t1","title":"Song","artist":"Artist","duration":200,"is_favorite":true}"#.data(using: .utf8)!
+        let trackJSON = #"{"id":"t1","title":"Song","artist":"Artist","duration":200,"is_favorite":true,"suffix":"mp3","contentType":"audio/mpeg"}"#.data(using: .utf8)!
         let decodedTrack = try! JSONDecoder().decode(TrackDto.self, from: trackJSON)
         expect(decodedTrack.isFavorite, "decodes is_favorite")
         expect(decodedTrack.durationSeconds == 200, "duration is seconds")
+        expect(decodedTrack.suffix == "mp3", "decodes suffix")
+        expect(decodedTrack.isLossy == true, "identifies mp3 as lossy")
+        expect(decodedTrack.isFlac == false, "identifies mp3 is not flac")
+        let flacTrack = TrackDto(id: "f1", title: "Flac", suffix: "flac")
+        expect(flacTrack.isFlac == true, "identifies flac track")
+        expect(flacTrack.isLossy == false, "flac is not lossy")
         let starredBoolJSON = #"{"id":"t2","title":"Song2","starred":true}"#.data(using: .utf8)!
         let decodedStarredBool = try! JSONDecoder().decode(TrackDto.self, from: starredBoolJSON)
         expect(decodedStarredBool.isFavorite, "decodes boolean starred")

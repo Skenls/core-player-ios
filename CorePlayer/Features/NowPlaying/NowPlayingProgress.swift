@@ -39,9 +39,14 @@ struct NowPlayingScrubber: View {
                             isSeeking = true
                             seekPosition = min(1, max(0, value.location.x / geo.size.width)) * player.duration
                         }
-                        .onEnded { _ in
-                            player.seek(seekPosition)
-                            isSeeking = false
+                        .onEnded { value in
+                            guard player.duration > 0 else { return }
+                            let target = min(1, max(0, value.location.x / geo.size.width)) * player.duration
+                            seekPosition = target
+                            player.seek(target)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                isSeeking = false
+                            }
                         }
                 )
             }

@@ -8,6 +8,7 @@ final class PlayerEngine {
     private var itemLikelyObserver: NSKeyValueObservation?
     private var itemBufferEmptyObserver: NSKeyValueObservation?
     private var stallObserver: NSObjectProtocol?
+    private var userWantsPlayback = false
     var onTime: ((Double, Double) -> Void)?
     var onEnded: (() -> Void)?
     var onError: ((Error?) -> Void)?
@@ -36,6 +37,16 @@ final class PlayerEngine {
             guard let self,
                   let item = notification.object as? AVPlayerItem,
                   item === self.player.currentItem else { return }
+
+            let currentTime = self.player.currentTime().seconds
+            let duration = item.duration.seconds
+            // Guard against premature lock-screen cutoff caused by network chunk starvation
+            if duration.isFinite && duration > 2.0 && (duration - currentTime) > 2.0 {
+                if self.userWantsPlayback && self.player.rate == 0 {
+                    self.player.play()
+                }
+                return
+            }
             self.onEnded?()
         }
 
@@ -47,22 +58,23 @@ final class PlayerEngine {
             guard let self,
                   let item = notification.object as? AVPlayerItem,
                   item === self.player.currentItem else { return }
-            // Playback stalled: re-check and auto-resume once data is buffered
+            // Playback stalled: re-check and auto-resume once data is buffered, ONLY if user wanted playback
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if self.player.rate == 0 && self.player.error == nil {
+                if self.userWantsPlayback && self.player.rate == 0 && self.player.error == nil {
                     self.player.play()
                 }
             }
         }
     }
 
-    func load(url: URL) {
-        player.pause()
+    func load(url: URL, autoPlay: Bool = true) {
+        userWantsPlayback = autoPlay
         cleanupItemObservers()
 
         let item = AVPlayerItem(url: url)
-        // 8 seconds forward buffer keeps a steady cushion against network variance
-        item.preferredForwardBufferDuration = 8.0
+        // 30 seconds forward buffer keeps a generous cushion against network variance and background throttling
+        item.preferredForwardBufferDuration = 30.0
+        // Directly replace current item without clearing to nil, preventing iOS from killing background audio session
         player.replaceCurrentItem(with: item)
 
         itemStatusObserver = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
@@ -71,7 +83,7 @@ final class PlayerEngine {
                 case .readyToPlay:
                     let seconds = item.duration.seconds
                     self?.onReady?(seconds.isFinite ? max(0, seconds) : 0)
-                    if self?.player.rate == 0 {
+                    if self?.userWantsPlayback == true && self?.player.rate == 0 {
                         self?.player.play()
                     }
                 case .failed:
@@ -85,7 +97,7 @@ final class PlayerEngine {
         itemLikelyObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if item.isPlaybackLikelyToKeepUp && self.player.rate == 0 && self.player.error == nil {
+                if self.userWantsPlayback && item.isPlaybackLikelyToKeepUp && self.player.rate == 0 && self.player.error == nil {
                     self.player.play()
                 }
             }
@@ -94,7 +106,7 @@ final class PlayerEngine {
         itemBufferEmptyObserver = item.observe(\.isPlaybackBufferEmpty, options: [.new]) { [weak self] item, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if !item.isPlaybackBufferEmpty && self.player.rate == 0 && self.player.error == nil {
+                if self.userWantsPlayback && !item.isPlaybackBufferEmpty && self.player.rate == 0 && self.player.error == nil {
                     self.player.play()
                 }
             }
@@ -111,19 +123,28 @@ final class PlayerEngine {
     }
 
     func play() {
+        userWantsPlayback = true
         player.play()
     }
 
     func pause() {
+        userWantsPlayback = false
         player.pause()
     }
 
     func seek(to time: Double) {
         let target = CMTime(seconds: max(0, time), preferredTimescale: 600)
-        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        let tolerance = CMTime(seconds: 0.5, preferredTimescale: 600)
+        player.seek(to: target, toleranceBefore: tolerance, toleranceAfter: tolerance) { [weak self] _ in
+            guard let self else { return }
+            if self.userWantsPlayback && self.player.rate == 0 && self.player.error == nil {
+                self.player.play()
+            }
+        }
     }
 
     func stop() {
+        userWantsPlayback = false
         player.pause()
         cleanupItemObservers()
         player.replaceCurrentItem(with: nil)

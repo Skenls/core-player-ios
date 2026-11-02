@@ -61,6 +61,11 @@ final class SearchHistoryStore: ObservableObject {
         defaults.set(queries, forKey: key)
     }
 
+    func remove(_ query: String) {
+        queries.removeAll { $0.caseInsensitiveCompare(query) == .orderedSame }
+        defaults.set(queries, forKey: key)
+    }
+
     func clear() {
         queries = []
         defaults.removeObject(forKey: key)
