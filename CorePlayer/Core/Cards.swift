@@ -121,21 +121,25 @@ struct FavoriteBanner: View {
     var coverArt: String? = nil
     let onPlay: () -> Void
 
+    @Environment(\.api) private var api
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(sunsetGradient)
 
-            if coverArt != nil {
-                CoverView(coverID: coverArt, size: 400, cornerRadius: 18, pixelSize: 600)
-                    .opacity(0.55)
+            if let coverArt, !coverArt.isEmpty {
+                RemoteImage(url: api.coverURL(coverID: coverArt, size: 600))
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .opacity(0.4)
             }
 
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.06),
-                    Color(hex: 0x0B0F17).opacity(0.16),
-                    Color(hex: 0x0B0F17).opacity(0.60)
+                    Color.black.opacity(0.08),
+                    Color(hex: 0x0B0F17).opacity(0.25),
+                    Color(hex: 0x0B0F17).opacity(0.75)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -153,14 +157,16 @@ struct FavoriteBanner: View {
             }
             .padding(.leading, 20)
             .padding(.bottom, 18)
+            .padding(.trailing, 60)
+            .zIndex(1)
         }
-        .frame(height: 150)
+        .frame(height: 140)
         .frame(maxWidth: .infinity)
         .overlay(alignment: .topTrailing) {
             Image(systemName: "heart")
                 .font(.system(size: 22, weight: .medium))
                 .foregroundColor(.white)
-                .padding(12)
+                .padding(14)
         }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))

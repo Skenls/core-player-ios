@@ -6,7 +6,7 @@ enum CoreColors {
     static let surfaceVariant = Color(hex: 0x1A2232)
     static let bottomBar = Color(hex: 0x080C14)
     static let divider = Color(hex: 0x1E2638)
-    static let accent = Color(hex: 0xFF5722)
+    static let accent = Color.white
     static let favorite = Color(hex: 0xEF4444)
     static let textPrimary = Color.white
     static let textSecondary = Color(hex: 0x8E95A5)

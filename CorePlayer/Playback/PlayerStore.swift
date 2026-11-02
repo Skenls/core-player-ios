@@ -271,9 +271,17 @@ final class PlayerStore: ObservableObject {
 
         recent.add(track)
 
-        // Prefetch only the NEXT track in the queue: prefetching the current
-        // track doubles server traffic and can stall the live AVPlayer stream.
-        if let nextTrack = queue.nextTrack {
+        // Android parity: Two-stage cache pipeline (TrackCacheManager)
+        // Stage 1: Pre-cache current track completely so replays and seeks are instantaneous.
+        cache.prefetch(
+            track: track,
+            codec: codec,
+            baseURL: api.baseURL,
+            sessionID: api.sessionID
+        )
+
+        // Stage 2: Pre-cache next track in queue.
+        if let nextTrack = queue.nextTrack, nextTrack.id != track.id {
             cache.prefetch(
                 track: nextTrack,
                 codec: codec,

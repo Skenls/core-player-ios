@@ -47,10 +47,11 @@ final class PlayerEngine {
             guard let self,
                   let item = notification.object as? AVPlayerItem,
                   item === self.player.currentItem else { return }
-            // Playback stalled: AVPlayer buffers automatically.
-            // Re-trigger play once buffer catches up.
-            if item.isPlaybackLikelyToKeepUp {
-                self.player.play()
+            // Playback stalled: re-check and auto-resume once data is buffered
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if self.player.rate == 0 && self.player.error == nil {
+                    self.player.play()
+                }
             }
         }
     }
@@ -60,8 +61,8 @@ final class PlayerEngine {
         cleanupItemObservers()
 
         let item = AVPlayerItem(url: url)
-        // 0 lets AVPlayer start quickly and buffer continuously without stalling on large files.
-        item.preferredForwardBufferDuration = 0
+        // 8 seconds forward buffer keeps a steady cushion against network variance
+        item.preferredForwardBufferDuration = 8.0
         player.replaceCurrentItem(with: item)
 
         itemStatusObserver = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
@@ -70,6 +71,9 @@ final class PlayerEngine {
                 case .readyToPlay:
                     let seconds = item.duration.seconds
                     self?.onReady?(seconds.isFinite ? max(0, seconds) : 0)
+                    if self?.player.rate == 0 {
+                        self?.player.play()
+                    }
                 case .failed:
                     self?.onError?(item.error)
                 default:
@@ -81,7 +85,16 @@ final class PlayerEngine {
         itemLikelyObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if item.isPlaybackLikelyToKeepUp && self.player.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+                if item.isPlaybackLikelyToKeepUp && self.player.rate == 0 && self.player.error == nil {
+                    self.player.play()
+                }
+            }
+        }
+
+        itemBufferEmptyObserver = item.observe(\.isPlaybackBufferEmpty, options: [.new]) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if !item.isPlaybackBufferEmpty && self.player.rate == 0 && self.player.error == nil {
                     self.player.play()
                 }
             }
