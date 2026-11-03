@@ -62,7 +62,6 @@ struct SearchView: View {
                     }
                     player.play(track: track, in: queue, source: "Поиск")
                 }
-                .padding(.bottom, 120)
             }
         }
     }

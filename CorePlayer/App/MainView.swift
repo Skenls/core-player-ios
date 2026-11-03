@@ -19,14 +19,12 @@ struct MainView: View {
             tab(.library) { LibraryView() }
         }
         .background((settings.amoled ? Color.black : CoreColors.background).ignoresSafeArea())
-        // Floating bubble (Telegram-style) above a solid bottom tab bar.
-        .overlay(alignment: .bottom) {
-            MiniPlayerView(openPlayer: { showNowPlaying = true })
-                .padding(.bottom, 4)
-                .zIndex(2)
-        }
-        .safeAreaInset(edge: .bottom) {
-            CoreTabBar(selection: $selected)
+        // Reserve layout space so every scroll view can reach its last row above the player.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                MiniPlayerView(openPlayer: { showNowPlaying = true })
+                CoreTabBar(selection: $selected)
+            }
         }
         .fullScreenCover(isPresented: $showNowPlaying) {
             NowPlayingView()

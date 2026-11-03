@@ -61,7 +61,7 @@ webplayer-ios/
 │   │   ├── Models.swift         # DTO + «терпимые» декодеры (FlexibleList и др.)
 │   │   ├── APIClient.swift      # транспорт, сессия, все эндпоинты
 │   │   ├── StreamURLBuilder.swift # URL стримов и обложек (cookie в query)
-│   │   ├── AudioCodec.swift     # auto / mp3 / flac
+│   │   ├── AudioCodec.swift     # auto / mp3 / aac / flac / alac
 │   │   ├── AuthStore.swift      # логин, restore, logout
 │   │   ├── Keychain.swift       # обёртка kSecClassGenericPassword
 │   │   ├── SettingsStore.swift  # codec, background, adaptiveBubble, amoled
@@ -96,7 +96,8 @@ webplayer-ios/
 │   │   ├── Library/LibraryView.swift (+ LibraryViewModel),
 │   │   │        PlaylistDetailView.swift, CreatePlaylistSheet.swift
 │   │   ├── NowPlaying/NowPlayingView.swift, NowPlayingProgress.swift,
-│   │   │        NowPlayingLyrics.swift, SyncedLyricsView.swift
+│   │   │        NowPlayingLyrics.swift, SyncedLyricsView.swift,
+│   │   │        LyricsFocusModel.swift
 │   │   └── Settings/SettingsView.swift
 │   └── Resources/
 │       ├── Info.plist           # ATS arbitrary loads, UIBackgroundModes audio, ориентации
@@ -105,7 +106,11 @@ webplayer-ios/
 ├── scripts/
 │   ├── LogicTests.swift         # CLI-тесты логики (без Xcode)
 │   ├── ArtistUtilsTests.swift   # CLI-тесты чистки ФИО
-│   └── run-logic-tests.sh       # компилирует и запускает оба
+│   ├── LyricsFocusTests.swift   # восстановление фокуса текста
+│   ├── PlaybackEngineTests.swift# seek и healthy-buffer сигналы AVPlayer
+│   ├── PlaybackCacheTests.swift # регрессии prefetch/буфера
+│   ├── LayoutTests.swift        # нижний inset мини-плеера
+│   └── run-logic-tests.sh       # компилирует и запускает все наборы
 ├── .github/workflows/build.yml  # CI: unsigned IPA
 ├── PLAN.md                      # исходный план порта (история)
 ├── README.md                    # краткое readme
@@ -177,7 +182,7 @@ webplayer-ios/
 - После входа: `session_id` → Keychain, переход на Main.
 
 ### 5.2 Main (4 таба)
-Плавающий пузырь-плеер (если играет трек) поверх solid таб-бара. Табы: Главная / Поиск / Все треки / Медиатека. Отдельного экрана очереди нет — как в Android.
+Пузырь-плеер (если играет трек) и solid таб-бар встроены в нижний `safeAreaInset`. Контент списков автоматически получает отступ, поэтому последний трек можно доскроллить выше пузыря на любом экране, включая альбомы, исполнителей и плейлисты. Табы: Главная / Поиск / Все треки / Медиатека. Отдельного экрана очереди нет — как в Android.
 
 **Мини-плеер (пузырь)**
 - Форма: стадион-капсула; фон — градиент (фикс-твилайт `0x161C26 → 0x12344E`, либо при «адаптивном пузыре» — цвета из палитры обложки), тень, белая обводка 1pt.
@@ -209,11 +214,11 @@ webplayer-ios/
 ### 5.7 Now Playing (полноэкранный)
 - Top-bar: chevron вниз | «ИГРАЕТ ИЗ» + «Альбом «X»» или «Медиатека» | «в плейлист» + кнопка текста (toggle).
 - Центр (занимает свободное место): обложка (85% ширины, радиус 24, тень; **тап по обложке → текст песни**) ⇄ SyncedLyricsView (плавный crossfade).
-- Низ: название 22 pt bold + чистый артист 16 pt + сердце 26 pt; скраббер (линия 3 pt, ползунок 10 pt, тап/свайп — seek) с текущим/полным временем; контролы: shuffle / prev / **белый круг 72 pt с чёрной иконкой (спиннер во время загрузки)** / next / repeat (repeat-1 в режиме one).
+- Низ: название 22 pt bold + чистый артист 16 pt + сердце 26 pt; скраббер (линия 3 pt, ползунок 10 pt, тап/свайп — seek; выбранная позиция удерживается до фактического завершения seek, без отката) с текущим/полным временем; контролы: shuffle / prev / **белый круг 72 pt с чёрной иконкой (спиннер во время загрузки)** / next / repeat (repeat-1 в режиме one).
 - Фон: «Под обложку» — blur обложки + затемнение 0.82; иначе плоский фон; AMOLED — чистый чёрный.
 
 ### 5.8 Settings (sheet)
-Фон плеера (Под обложку/Тёмный), AMOLED, Адаптивный пузырь, Кодек (Авто/MP3/FLAC; подпись «Opus недоступен на iOS»), Аккаунт (адрес сервера, «Выйти»).
+Фон плеера (Под обложку/Тёмный), AMOLED, Адаптивный пузырь, Кодек (Авто/MP3/AAC/FLAC/ALAC; подпись «Opus недоступен на iOS»), Аккаунт (адрес сервера, «Выйти»).
 
 ---
 
@@ -233,9 +238,9 @@ webplayer-ios/
   1. локальный файл из `TrackCache`, иначе remote URL из `APIClient`;
   2. активация аудиосессии, play;
   3. `RecentStore.add`;
-  4. prefetch **только следующего** трека (текущий намеренно не качается: двойной трафик душил стрим — прошлый баг);
+  4. prefetch **только следующего** трека, и только после сигнала `isPlaybackLikelyToKeepUp` (текущий не качается: двойной трафик душил стрим — прошлый баг);
   5. обновление Now Playing.
-- Seek из UI — точный (tolerance 0).
+- Seek из UI — точный (tolerance 0); completion вызывается после завершения или прерывания seek, UI снимает удержание позиции только по нему.
 
 ### 6.3 AVAudioSession
 - Категория `.playback` без опций; активируется на play/load, деактивируется на stop/logout с `notifyOthersOnDeactivation`.
@@ -248,23 +253,23 @@ webplayer-ios/
 - Данные: title, артист (чистый), duration, elapsed, rate, обложка 1200 px. Обновление не чаще 1 раза в секунду; немедленное — при play/смене трека.
 
 ### 6.5 Что сделано против «постоянных прерываний»
-1. Prefetch только следующего трека (раньше качали и текущий — двойной трафик на сервере).
-2. Потоковое воспроизведение (`preferredForwardBufferDuration = 0`) с автовозобновлением при `isPlaybackLikelyToKeepUp`.
+1. Prefetch только следующего трека и только когда текущий буфер признан здоровым; текущий трек параллельно не скачивается (раньше двойной трафик душил стрим).
+2. Потоковое воспроизведение (`preferredForwardBufferDuration = 0`) с автовозобновлением при `isPlaybackLikelyToKeepUp`; автоматический размер буфера не задерживает старт FLAC/MP3.
 3. Убран деструктивный watchdog с принудительными `pause()+play()`, сбрасывавшими буферизацию.
 4. `auto` теперь шлёт URL без лишних параметров: сырой файл с честным Content-Length (Android parity).
-5. `estimateContentLength=true` только при явном codec (mp3/flac) — на транскоде.
+5. `estimateContentLength=true` только при явном codec (mp3/aac/flac/alac) — на транскоде.
 
-Воспроизведение проверено AVPlayer-пробой против живого backend: ноль подтормаживаний на FLAC и MP3 (сырой и транскод).
+Базовая AVPlayer-проба против живого backend ранее проходила на FLAC и MP3; итоговое поведение этой сборки проверяется на устройстве, локального Xcode/симулятора нет.
 
 ---
 
 ## 7. Кэш
 
 ### 7.1 Треки — TrackCache
-- Каталог `Caches/CorePlayerTracks`, имя файла `<trackId>-<codec>.<ext>` (расширение определяется по Content-Type: mp3/flac/m4a/ogg/audio).
+- Каталог `Caches/CorePlayerTracks`, имя файла `<trackId>-<codec>.<ext>` (расширение определяется по Content-Type: mp3/flac/m4a/aac/ogg/audio).
 - Скачивание: `URLSession.download` → атомарный move (частичных файлов на диске не бывает). In-flight Set защищает от дублей.
 - LRU-вытеснение по modification date до 500 МБ; при каждом чтении mtime обновляется.
-- Prefetch — следующий трек очереди, приоритет `.utility`, чтобы не конкурировать со стримом.
+- Prefetch — следующий трек очереди после подтверждения здорового буфера, один раз на текущий трек, приоритет `.utility`.
 - Кэш-хит → играется локальный файл (для повторов интернет не нужен).
 
 ### 7.2 Обложки
@@ -306,7 +311,7 @@ webplayer-ios/
 | GET | `/api/library/random?size=` | случайные треки |
 | GET | `/api/library/search?q=` | треки + альбомы + исполнители |
 | GET | `/api/lyrics/{id}?artist=&title=[&album=][&duration=]` | текст (LRC) |
-| GET | `/api/stream/{id}[?format=mp3|flac&estimateContentLength=true&session_id=]` | аудиострим, Range/206 |
+| GET | `/api/stream/{id}[?format=mp3|aac|flac|alac&estimateContentLength=true&session_id=]` | аудиострим, Range/206 |
 | GET | `/api/stream/cover/{coverId}?size=&session_id=` | обложка |
 
 Backend сам ничего не транскодирует — `format` передаётся в Navidrome.
@@ -333,7 +338,7 @@ Backend/Navidrome отдают составы по-разному (`tracks` / `s
 - Вид `SyncedLyricsView` (порт Android):
   - активная строка: белая, **bold 23 pt**, масштаб 1.05;
   - неактивные: medium 19 pt, прозрачность 0.32, **blur 2.5**;
-  - когда пользователь листает руками — блюр снимается, прозрачность 0.72; через 2.5 с бездействия автоскролл и фокус возвращаются;
+  - когда пользователь листает руками — блюр снимается, прозрачность 0.72; через 2.5 с бездействия автоскролл и фокус возвращаются; таймер взводится на каждом событии прокрутки, поэтому восстановление работает, даже если SwiftUI отменил жест и не прислал `onEnded`;
   - тап по строке — seek (и восстановление фокуса);
   - автоскролл к активной строке по центру, плавный;
   - пустая строка → «♪»; нет текста → «Текст песни недоступен» + кнопка «Повторить»;
@@ -369,7 +374,7 @@ Info.plist: `UIUserInterfaceStyle: Dark`, пустой launch screen, ориен
 
 | Настройка | Тип | Эффект |
 |---|---|---|
-| Кодек | auto / mp3 / flac | влияет на URL стрима; mp3/flac → `format=` + `estimateContentLength=true`; auto — сырой файл; flac — без потерь |
+| Кодек | auto / mp3 / aac / flac / alac | влияет на URL стрима; mp3/aac/flac/alac → `format=` + `estimateContentLength=true`; auto — сырой файл; flac/alac — без потерь |
 | Фон плеера | cover / dark | blurred обложка в Now Playing против плоского фона |
 | AMOLED | bool | чистый чёрный фон |
 | Адаптивный пузырь | bool | мини-плееру градиент из палитры обложки вместо фиксированного |
@@ -428,9 +433,12 @@ zip -r CorePlayer.ipa Payload
 ```bash
 ./scripts/run-logic-tests.sh
 ```
-Компилирует чистые модули (Models, LRCParser, StreamURLBuilder, QueueState, AudioCodec, ArtistUtils) и прогоняет два тестовых набора:
+Компилирует чистые модули (Models, LRCParser, StreamURLBuilder, QueueState, AudioCodec, ArtistUtils, TrackCache, PlayerEngine) и прогоняет тестовые наборы:
 - **LogicTests**: LRC (время, множественные метки, доли, индекс текущей строки), QueueState (next/repeat/shuffle), StreamURLBuilder (auto без параметров, mp3 с format+estimateContentLength, session_id, путь cover), декодинг моделей (FlexibleList, SearchResponse, обёртки деталей, FavoritesIds).
-- **ArtistUtilsTests**: отдельный бинарь — чистка ФИО по • / , / ;, кириллица без патронимика остаётся, nil/пустые → пустая строка.
+- **LyricsFocusTests**: фокус текста возвращается после паузы в прокрутке даже без `onEnded`, повторный жест продлевает паузу, тап возвращает сразу.
+- **PlaybackEngineTests**: seek завершается, прерывается и последний seek побеждает; сигнал здорового буфера приходит один раз на трек.
+- **PlaybackCacheTests** и **LayoutTests**: регрессии — нет параллельного скачивания текущего трека, буфер автоматический, мини-плеер в `safeAreaInset`, ручных отступов 120 pt нет.
+- **ArtistUtilsTests**: чистка ФИО по • / , / ;, кириллица без патронимика остаётся, nil/пустые → пустая строка.
 
 ### 14.2 XCTest в Xcode
 `CorePlayerTests/CorePlayerTests.swift` — минимальный набор (LRC, URL стрима, очередь) для запуска из IDE.
@@ -444,6 +452,7 @@ zip -r CorePlayer.ipa Payload
 | Аудио-движок | ExoPlayer (Media3) | AVPlayer |
 | Opus/Ogg | играет | **не играет** (исключено сознательно) |
 | Кроссфейд | есть | **нет** (по требованию) |
+| Кодеки | auto / mp3 / aac / flac / alac | те же, но Opus/Ogg не поддерживается |
 | Кэш файлов | ExoPlayer SimpleCache (байтовые диапазоны) | целые файлы, LRU 500 МБ, prefetch следующего |
 | Ландшафт | two-column плеер | two-column плеер |
 | Ноль экрана очереди | нет отдельного экрана | нет отдельного экрана |

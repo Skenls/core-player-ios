@@ -140,11 +140,12 @@ final class TrackCache {
         "\(trackID)-\(codec.rawValue)"
     }
 
-    private static func fileExtension(for mimeType: String?) -> String {
+    static func fileExtension(for mimeType: String?) -> String {
         switch mimeType?.lowercased() {
         case "audio/mpeg", "audio/mp3": return "mp3"
         case "audio/flac", "audio/x-flac": return "flac"
-        case "audio/mp4", "audio/aac": return "m4a"
+        case "audio/mp4", "audio/x-m4a", "audio/m4a": return "m4a"
+        case "audio/aac", "audio/aacp": return "aac"
         case "audio/ogg": return "ogg"
         default: return "audio"
         }

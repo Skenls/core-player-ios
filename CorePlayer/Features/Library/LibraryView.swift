@@ -23,7 +23,6 @@ struct LibraryView: View {
                     VStack(alignment: .leading) {
                         if tab == .favorites { favoriteList } else { playlistList }
                     }
-                    .padding(.bottom, 120)
                 }
             }
         }

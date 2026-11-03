@@ -13,9 +13,7 @@ struct SyncedLyricsView: View {
     var errorMessage: String? = nil
     var onRetry: (() -> Void)? = nil
 
-    @State private var isAutoFocusActive = true
-    @State private var focusJob: DispatchWorkItem?
-    @State private var lastScrolled = Date.distantPast
+    @StateObject private var focusModel = LyricsFocusModel()
 
     private var activeIndex: Int? {
         LRCParser.currentIndex(lines, at: position)
@@ -92,15 +90,21 @@ struct SyncedLyricsView: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 12)
                     .onChanged { _ in
-                        userStartedScrolling()
+                        focusModel.userStartedScrolling()
                     }
                     .onEnded { _ in
-                        scheduleFocusRestore()
+                        focusModel.userFinishedScrolling()
                     }
             )
             .onChange(of: activeIndex) { value in
-                guard isAutoFocusActive, let index = value else { return }
+                guard focusModel.isAutoFocusActive, let index = value else { return }
                 withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(lines[index].id, anchor: .center)
+                }
+            }
+            .onChange(of: focusModel.isAutoFocusActive) { focused in
+                guard focused, let index = activeIndex else { return }
+                withAnimation(.easeInOut(duration: 0.4)) {
                     proxy.scrollTo(lines[index].id, anchor: .center)
                 }
             }
@@ -112,31 +116,12 @@ struct SyncedLyricsView: View {
         }
     }
 
-    private func userStartedScrolling() {
-        let now = Date()
-        guard now.timeIntervalSince(lastScrolled) > 0.25 else { return }
-        lastScrolled = now
-        isAutoFocusActive = false
-        focusJob?.cancel()
-    }
-
-    private func scheduleFocusRestore() {
-        focusJob?.cancel()
-        let job = DispatchWorkItem {
-            withAnimation(.easeInOut(duration: 0.4)) {
-                isAutoFocusActive = true
-            }
-        }
-        focusJob = job
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: job)
-    }
-
     // MARK: - Line
 
     private func lyricRow(_ line: LyricLine) -> some View {
         let active = line.id == activeIndexValue
-        let alpha: Double = active ? 1 : (isAutoFocusActive ? 0.32 : 0.72)
-        let blur: CGFloat = isAutoFocusActive && !active ? 2.5 : 0
+        let alpha: Double = active ? 1 : (focusModel.isAutoFocusActive ? 0.32 : 0.72)
+        let blur: CGFloat = focusModel.isAutoFocusActive && !active ? 2.5 : 0
 
         return Text(line.text.isEmpty ? "♪" : line.text)
             .font(.system(size: active ? 23 : 19, weight: active ? .bold : .medium))
@@ -146,14 +131,13 @@ struct SyncedLyricsView: View {
             .scaleEffect(active ? 1.05 : 1, anchor: UnitPoint(x: 0, y: 0.5))
             .blur(radius: blur)
             .animation(.spring(), value: active)
-            .animation(.easeInOut(duration: 0.25), value: isAutoFocusActive)
+            .animation(.easeInOut(duration: 0.25), value: focusModel.isAutoFocusActive)
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
             .contentShape(Rectangle())
             .onTapGesture {
                 onSeek(line.time)
-                focusJob?.cancel()
-                withAnimation(.easeInOut(duration: 0.25)) { isAutoFocusActive = true }
+                focusModel.restoreNow()
             }
     }
 

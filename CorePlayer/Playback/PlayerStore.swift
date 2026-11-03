@@ -35,6 +35,7 @@ final class PlayerStore: ObservableObject {
     private var configured = false
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var currentCodec: AudioCodec = .auto
+    private var prefetchedNextForTrackID: String?
 
     init(
         api: APIClient,
@@ -70,6 +71,9 @@ final class PlayerStore: ObservableObject {
             }
             self.endTransitionBackgroundTask()
             self.updateNowPlaying(force: true)
+        }
+        engine.onPlaybackLikelyToKeepUp = { [weak self] in
+            self?.prefetchNextTrack()
         }
 
         nowPlaying.setup(
@@ -197,10 +201,14 @@ final class PlayerStore: ObservableObject {
         loadCurrent()
     }
 
-    func seek(_ time: Double) {
+    func seek(_ time: Double, completion: (() -> Void)? = nil) {
         let upper = duration > 0 ? duration : time
         let clamped = min(max(0, time), upper)
-        engine.seek(to: clamped)
+        engine.seek(to: clamped) { [weak self] actual in
+            self?.position = actual
+            self?.updateNowPlaying(force: true)
+            completion?()
+        }
         position = clamped
         updateNowPlaying(force: true)
     }
@@ -222,6 +230,7 @@ final class PlayerStore: ObservableObject {
         retryWork?.cancel()
         retryWork = nil
         engine.stop()
+        prefetchedNextForTrackID = nil
         queue = QueueState()
         queueCount = 0
         currentTrack = nil
@@ -272,18 +281,9 @@ final class PlayerStore: ObservableObject {
         errorMessage = nil
         isLoading = true
 
-        // Effective codec determination:
-        // 1. If user selected FLAC, but the track is natively lossy (e.g. MP3) or FLAC,
-        // fallback to .auto (original stream). Navidrome fails when asked to transcode MP3->FLAC,
-        // and streaming native FLAC without transcode eliminates ffmpeg piping/seek stalls.
-        let rawCodec = settings.codec
-        let codec: AudioCodec
-        if rawCodec == .flac && (track.isLossy || track.isFlac) {
-            codec = .auto
-        } else {
-            codec = rawCodec
-        }
+        let codec = resolvedCodec(for: track)
         currentCodec = codec
+        prefetchedNextForTrackID = nil
 
         let url: URL
         if let local = cache.localURL(trackID: track.id, codec: codec) {
@@ -302,27 +302,31 @@ final class PlayerStore: ObservableObject {
         isPlaying = true
 
         recent.add(track)
+        updateNowPlaying(force: true)
+    }
 
-        // Android parity: Two-stage cache pipeline (TrackCacheManager)
-        // Stage 1: Pre-cache current track completely so replays and seeks are instantaneous.
+    /// FLAC passthrough avoids ffmpeg for native FLAC and impossible lossy-to-FLAC transcodes.
+    private func resolvedCodec(for track: TrackDto) -> AudioCodec {
+        let codec = settings.codec
+        guard codec == .flac, track.isLossy || track.isFlac else { return codec }
+        return .auto
+    }
+
+    /// Start the next download only after AVPlayer reports enough current buffer.
+    // shortcut: prefetch waits for a healthy current buffer; if stalls persist on slow networks,
+    // replace this with one AVAssetResourceLoader tee that streams and caches the current track.
+    private func prefetchNextTrack() {
+        guard let track = currentTrack,
+              prefetchedNextForTrackID != track.id,
+              let nextTrack = queue.nextTrack,
+              nextTrack.id != track.id else { return }
+        prefetchedNextForTrackID = track.id
         cache.prefetch(
-            track: track,
-            codec: codec,
+            track: nextTrack,
+            codec: resolvedCodec(for: nextTrack),
             baseURL: api.baseURL,
             sessionID: api.sessionID
         )
-
-        // Stage 2: Pre-cache next track in queue.
-        if let nextTrack = queue.nextTrack, nextTrack.id != track.id {
-            cache.prefetch(
-                track: nextTrack,
-                codec: codec,
-                baseURL: api.baseURL,
-                sessionID: api.sessionID
-            )
-        }
-
-        updateNowPlaying(force: true)
     }
 
     private func playIndex(_ index: Int) {

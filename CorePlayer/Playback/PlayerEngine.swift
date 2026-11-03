@@ -9,10 +9,12 @@ final class PlayerEngine {
     private var itemBufferEmptyObserver: NSKeyValueObservation?
     private var stallObserver: NSObjectProtocol?
     private var userWantsPlayback = false
+    private var didNotifyPlaybackHealthy = false
     var onTime: ((Double, Double) -> Void)?
     var onEnded: (() -> Void)?
     var onError: ((Error?) -> Void)?
     var onReady: ((Double) -> Void)?
+    var onPlaybackLikelyToKeepUp: (() -> Void)?
 
     init() {
         player.actionAtItemEnd = .pause
@@ -72,8 +74,9 @@ final class PlayerEngine {
         cleanupItemObservers()
 
         let item = AVPlayerItem(url: url)
-        // 30 seconds forward buffer keeps a generous cushion against network variance and background throttling
-        item.preferredForwardBufferDuration = 30.0
+        // AVPlayer chooses the buffer size; reserving 30s up front delayed startup on transcoded streams.
+        item.preferredForwardBufferDuration = 0
+        didNotifyPlaybackHealthy = false
         // Directly replace current item without clearing to nil, preventing iOS from killing background audio session
         player.replaceCurrentItem(with: item)
 
@@ -83,6 +86,7 @@ final class PlayerEngine {
                 case .readyToPlay:
                     let seconds = item.duration.seconds
                     self?.onReady?(seconds.isFinite ? max(0, seconds) : 0)
+                    self?.notifyPlaybackHealthyIfNeeded(item)
                     if self?.userWantsPlayback == true && self?.player.rate == 0 {
                         self?.player.play()
                     }
@@ -97,6 +101,7 @@ final class PlayerEngine {
         itemLikelyObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
+                self.notifyPlaybackHealthyIfNeeded(item)
                 if self.userWantsPlayback && item.isPlaybackLikelyToKeepUp && self.player.rate == 0 && self.player.error == nil {
                     self.player.play()
                 }
@@ -132,13 +137,28 @@ final class PlayerEngine {
         player.pause()
     }
 
-    func seek(to time: Double) {
+    private func notifyPlaybackHealthyIfNeeded(_ item: AVPlayerItem) {
+        guard !didNotifyPlaybackHealthy,
+              item === player.currentItem,
+              item.status == .readyToPlay,
+              item.isPlaybackLikelyToKeepUp else { return }
+        didNotifyPlaybackHealthy = true
+        onPlaybackLikelyToKeepUp?()
+    }
+
+    func seek(to time: Double, completion: ((Double) -> Void)? = nil) {
         let target = CMTime(seconds: max(0, time), preferredTimescale: 600)
-        let tolerance = CMTime(seconds: 0.5, preferredTimescale: 600)
-        player.seek(to: target, toleranceBefore: tolerance, toleranceAfter: tolerance) { [weak self] _ in
-            guard let self else { return }
-            if self.userWantsPlayback && self.player.rate == 0 && self.player.error == nil {
-                self.player.play()
+        player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self else {
+                    completion?(time)
+                    return
+                }
+                if self.userWantsPlayback && self.player.rate == 0 && self.player.error == nil {
+                    self.player.play()
+                }
+                let actual = self.player.currentTime().seconds
+                completion?(actual.isFinite ? actual : time)
             }
         }
     }

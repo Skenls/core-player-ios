@@ -85,7 +85,6 @@ struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 120)
             }
             .refreshable {
                 await vm.load(api: api, force: true)
