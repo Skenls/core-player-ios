@@ -208,7 +208,7 @@ final class PlayerStore: ObservableObject {
     func seek(_ time: Double, completion: (() -> Void)? = nil) {
         let upper = duration > 0 ? duration : time
         let clamped = min(max(0, time), upper)
-        switch PlaybackSeekRouter.route(time: clamped, codec: currentCodec, isLocal: currentIsLocal) {
+        switch PlaybackSeekRouter.route(time: clamped, isLocal: currentIsLocal) {
         case .avPlayer(let target):
             engine.seek(to: target) { [weak self] actual in
                 self?.position = actual
@@ -217,7 +217,7 @@ final class PlayerStore: ObservableObject {
             }
             position = target
         case .offsetStream(let offset):
-            restartAACStream(at: offset, completion: completion)
+            restartOffsetStream(at: offset, completion: completion)
             return
         }
         updateNowPlaying(force: true)
@@ -321,13 +321,14 @@ final class PlayerStore: ObservableObject {
         updateNowPlaying(force: true)
     }
 
-    private func restartAACStream(at offset: Int, completion: (() -> Void)?) {
+    private func restartOffsetStream(at offset: Int, completion: (() -> Void)?) {
         guard let track = currentTrack else {
             completion?()
             return
         }
         let timeOffset = offset > 0 ? offset : nil
-        guard let url = api.streamURL(trackID: track.id, codec: .aac, timeOffset: timeOffset) else {
+        let codec = PlaybackSeekRouter.offsetCodec(requested: currentCodec, sourceSuffix: track.suffix)
+        guard let url = api.streamURL(trackID: track.id, codec: codec, timeOffset: timeOffset) else {
             completion?()
             errorMessage = "Не удалось построить ссылку на трек"
             return

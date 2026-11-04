@@ -1,6 +1,8 @@
-# AAC Streaming and Offset Seeking
+# Streaming and Server-Side Seeking
 
-Applies to Core Player iOS **v0.0.3-b**. ALAC support was removed: `format=alac` is no longer requested and ALAC is absent from Settings.
+Applies to Core Player iOS **v0.0.4-b**. ALAC support was removed: `format=alac` is no longer requested and ALAC is absent from Settings.
+
+AAC is the default lossy transcode used for FLAC/auto seeks. The same `timeOffset` mechanism is used for remote MP3 and FLAC sources because direct-play FLAC ignores the offset and MP3 transcodes can seek only inside the downloaded buffer.
 
 ## Codec
 
@@ -29,30 +31,46 @@ GET /api/stream/{track_id}?format=aac&timeOffset=85&session_id=...
 - The bridge forwards it to Navidrome, where FFmpeg starts with `-ss <offset>`.
 - Offset requests do **not** send `estimateContentLength`: an estimated length makes transcoded duration unreliable.
 - Normal AAC requests keep the existing `estimateContentLength=true` behavior.
-- The bridge support is in `core-player` commit `2d3cb7a` (`feat(stream): support timeOffset parameter for transcoded audio seeking`).
+- The bridge support is in `core-player` commit `2d3cb7a`; integer forwarding is fixed in `b721fc1`. The deployed bridge must be updated and restarted.
 
 ## iOS seeking behavior
 
-AAC restart applies only when all of these are true:
+Server-offset restart applies when the current item is remote and the user releases the scrubber. Locally cached files use normal `AVPlayer.seek` and work offline.
 
-1. the effective selected codec is AAC;
-2. the current item is remote;
-3. the user releases the scrubber.
+The seek relaunch must request a transcoded format different from the source suffix. Otherwise Navidrome can choose direct play and ignore `timeOffset`.
 
-The local cached AAC file uses normal `AVPlayer.seek` and works offline. Other codecs keep normal byte-range seeking.
+| Source suffix | Selected codec | Seek stream |
+|---|---|---|
+| flac | auto / flac | AAC |
+| flac | aac | AAC |
+| flac | mp3 | MP3 |
+| mp3 | auto / mp3 | AAC |
+| mp3 | aac | AAC |
+| aac / m4a | auto / aac | MP3 |
+| unknown | auto | AAC |
 
-For a remote AAC seek to `t`:
+For a remote seek to `t`:
 
-1. `PlayerStore` requests offset `Int(t)` using `timeOffset`;
-2. replaces the current `AVPlayerItem` with a new asset;
-3. releases the scrubber only after the new item becomes ready;
-4. reports absolute playback position as:
+1. `PlaybackSeekRouter` chooses the seek codec and integer offset `Int(t)`;
+2. `PlayerStore` pauses the old item and replaces it with a new offset stream;
+3. the scrubber is released only after the new item becomes ready;
+4. absolute playback position is reported as:
 
 ```text
 position = streamOffset + AVPlayer.currentTime
 ```
 
 The original track duration is retained, so the progress bar does not shrink to the remaining offset-stream duration. Seeking again requests a new offset from the absolute target. Reaching the end still triggers repeat/next normally.
+
+### Bridge requirement
+
+The bridge must forward an **integer** string. FastAPI's `float | int` query type produces `"85.0"`, which Navidrome's integer parser ignores:
+
+```python
+params["timeOffset"] = str(int(timeOffset))
+```
+
+Without this cast, every remote seek silently starts at zero even though the app requested an offset.
 
 ## cURL checks
 
@@ -70,13 +88,15 @@ curl -I -H "Cookie: session_id=YOUR_SESSION" \
   "http://localhost:3000/api/stream/TRACK_ID?format=aac&timeOffset=85"
 ```
 
+Verify the bridge log contains `timeOffset: '85'`, not `'85.0'`.
+
 Expected: `200 OK`, `Content-Type: audio/aac`, and `Accept-Ranges: bytes`. The media payload starts at approximately 85 seconds.
 
 ## Tests
 
 - `StreamURLBuilder` includes `format=aac` and integer `timeOffset`.
 - Offset URLs omit `estimateContentLength`.
-- `PlaybackSeekRouter` sends only remote AAC seeks to offset streams.
+- `PlaybackSeekRouter` sends every remote seek to an offset stream and never picks the source codec for that transcode.
 - `PlayerEngine` reports `streamOffset + currentTime` and keeps the known total duration.
 - Cache-extension tests cover ADTS `audio/aac` and MP4 `audio/mp4`.
 

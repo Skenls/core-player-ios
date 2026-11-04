@@ -124,12 +124,20 @@ struct LogicTests {
         expect(subsonicSearch.tracks.count == 1 && subsonicSearch.albums.count == 1 && subsonicSearch.artists.count == 1, "decodes Subsonic singular searchResult3")
 
         print("PlaybackSeekRouter")
-        expect(PlaybackSeekRouter.route(time: 85.9, codec: .aac, isLocal: false) == .offsetStream(85),
-               "remote AAC seeks by integer stream offset")
-        expect(PlaybackSeekRouter.route(time: 85.9, codec: .aac, isLocal: true) == .avPlayer(85.9),
-               "cached AAC seeks locally")
-        expect(PlaybackSeekRouter.route(time: 85.9, codec: .mp3, isLocal: false) == .avPlayer(85.9),
-               "non-AAC keeps AVPlayer seeking")
+        expect(PlaybackSeekRouter.route(time: 85.9, isLocal: false) == .offsetStream(85),
+               "remote streams seek by integer server offset")
+        expect(PlaybackSeekRouter.route(time: 85.9, isLocal: true) == .avPlayer(85.9),
+               "cached tracks keep local AVPlayer seeking")
+        expect(PlaybackSeekRouter.offsetCodec(requested: .auto, sourceSuffix: "flac") == .aac,
+               "raw FLAC switches to a transcoded seek format")
+        expect(PlaybackSeekRouter.offsetCodec(requested: .mp3, sourceSuffix: "flac") == .mp3,
+               "transcoded MP3 keeps its selected format")
+        expect(PlaybackSeekRouter.offsetCodec(requested: .flac, sourceSuffix: "flac") == .aac,
+               "FLAC matching its source avoids direct play")
+        expect(PlaybackSeekRouter.offsetCodec(requested: .mp3, sourceSuffix: "mp3") == .aac,
+               "MP3 matching its source avoids direct play")
+        expect(PlaybackSeekRouter.offsetCodec(requested: .aac, sourceSuffix: "m4a") == .mp3,
+               "AAC matching an M4A source avoids direct play")
 
         print("AudioCodec")
         expect(AudioCodec.auto.queryValue == nil, "auto has no query value")
@@ -138,8 +146,6 @@ struct LogicTests {
         expect(AudioCodec.aac.title == "AAC", "AAC title")
         expect(AudioCodec.allCases.map(\.rawValue) == ["auto", "mp3", "aac", "flac"], "ALAC is removed from settings")
         expect(AudioCodec(rawValue: "alac") == nil, "stored ALAC values no longer decode")
-        expect(AudioCodec.aac.usesOffsetStreamSeeking, "AAC seeks through a server-side offset stream")
-        expect(!AudioCodec.mp3.usesOffsetStreamSeeking, "MP3 keeps AVPlayer seeking")
         expect(TrackCache.fileExtension(for: "audio/aac") == "aac", "AAC streams cache with an aac extension")
         expect(TrackCache.fileExtension(for: "audio/mp4") == "m4a", "MP4 streams cache with an m4a extension")
 

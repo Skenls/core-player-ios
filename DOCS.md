@@ -240,8 +240,8 @@ webplayer-ios/
   3. `RecentStore.add`;
   4. prefetch **только следующего** трека, и только после сигнала `isPlaybackLikelyToKeepUp` (текущий не качается: двойной трафик душил стрим — прошлый баг);
   5. обновление Now Playing.
-- Seek локального файла и потоков auto/MP3/FLAC — точный (tolerance 0); completion вызывается после завершения или прерывания seek, UI снимает удержание позиции только по нему.
-- **AAC seek через новый поток:** если выбран AAC и текущий трек не локальный, `PlayerStore` не вызывает `AVPlayer.seek`, а заменяет item на `/api/stream/{id}?format=aac&timeOffset=<целые секунды>`. Бридж передаёт смещение в Navidrome, FFmpeg начинает вывод с этого места. `PlayerEngine` прибавляет offset к `currentTime` и ко всем time-callbacks, поэтому таймлайн продолжается с выбранной секунды; общая длительность трека сохраняется, а не заменяется длительностью остатка. Completion для UI срабатывает после готовности нового item. Загруженный в кэш AAC по-прежнему ищется локально без сети. Для offset-запроса `estimateContentLength` не передаётся.
+- Seek локального файла — точный (tolerance 0); completion вызывается после завершения или прерывания seek, UI снимает удержание позиции только по нему.
+- **Seek удалённого потока через новый поток:** для любого нелокального трека `PlayerStore` не полагается на `AVPlayer.seek` (у транскодов доступен только буфер, а raw FLAC игнорирует `timeOffset`). Item заменяется на `/api/stream/{id}?format=<codec>&timeOffset=<целые секунды>`. `PlaybackSeekRouter` выбирает транскодируемый кодек, **отличный от исходного суффикса файла**, иначе Navidrome может включить direct play и проигнорировать offset; для FLAC/auto обычно используется AAC, для MP3-источника — AAC, для AAC-источника — MP3. `PlayerEngine` сначала ставит старый item на паузу, затем заменяет его, прибавляет offset к `currentTime` и time-callbacks; общая длительность сохраняется. Completion для UI срабатывает после готовности нового item. Локальный кэш ищется штатным `AVPlayer.seek` без сети. Для offset-запроса `estimateContentLength` не передаётся. Бридж обязан передавать смещение **целым числом** (`str(int(timeOffset))`): Navidrome не понимает `85.0` и молча считает offset нулевым.
 
 ### 6.3 AVAudioSession
 - Категория `.playback` без опций; активируется на play/load, деактивируется на stop/logout с `notifyOthersOnDeactivation`.
@@ -437,7 +437,8 @@ zip -r CorePlayer.ipa Payload
 Компилирует чистые модули (Models, LRCParser, StreamURLBuilder, QueueState, AudioCodec, ArtistUtils, TrackCache, PlayerEngine) и прогоняет тестовые наборы:
 - **LogicTests**: LRC (время, множественные метки, доли, индекс текущей строки), QueueState (next/repeat/shuffle), StreamURLBuilder (auto без параметров, mp3 с format+estimateContentLength, session_id, путь cover), декодинг моделей (FlexibleList, SearchResponse, обёртки деталей, FavoritesIds).
 - **LyricsFocusTests**: фокус текста возвращается после паузы в прокрутке даже без `onEnded`, повторный жест продлевает паузу, тап возвращает сразу.
-- **PlaybackEngineTests**: seek завершается, прерывается и последний seek побеждает; сигнал здорового буфера приходит один раз на трек.
+- **PlaybackEngineTests**: seek завершается, прерывается и последний seek побеждает; сигнал здорового буфера приходит один раз на трек; offset-timeline продолжается с целевой секунды.
+- **PlaybackSeekRouter**: любой удалённый seek идёт через offset-stream, локальный — через `AVPlayer`; seek-кодек никогда не совпадает с суффиксом источника.
 - **PlaybackCacheTests** и **LayoutTests**: регрессии — нет параллельного скачивания текущего трека, буфер автоматический, мини-плеер в `safeAreaInset`, ручных отступов 120 pt нет.
 - **ArtistUtilsTests**: чистка ФИО по • / , / ;, кириллица без патронимика остаётся, nil/пустые → пустая строка.
 
@@ -454,6 +455,7 @@ zip -r CorePlayer.ipa Payload
 | Opus/Ogg | играет | **не играет** (исключено сознательно) |
 | Кроссфейд | есть | **нет** (по требованию) |
 | Кодеки | auto / mp3 / aac / flac | те же, но Opus/Ogg не поддерживается; ALAC удалён в v0.0.3-b |
+| Seek | AVPlayer + server offset | любой удалённый seek перезапускает поток с `timeOffset`; локальный кэш — обычный seek |
 | Кэш файлов | ExoPlayer SimpleCache (байтовые диапазоны) | целые файлы, LRU 500 МБ, prefetch следующего |
 | Ландшафт | two-column плеер | two-column плеер |
 | Ноль экрана очереди | нет отдельного экрана | нет отдельного экрана |

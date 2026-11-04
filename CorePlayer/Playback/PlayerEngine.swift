@@ -73,6 +73,10 @@ final class PlayerEngine {
     func load(url: URL, autoPlay: Bool = true, startOffset: Double = 0) {
         userWantsPlayback = autoPlay
         playbackOffset = max(0, startOffset)
+        if player.currentItem != nil {
+            // Stop the previous item before replacing it so its decoded audio cannot keep playing.
+            player.pause()
+        }
         cleanupItemObservers()
 
         let item = AVPlayerItem(url: url)

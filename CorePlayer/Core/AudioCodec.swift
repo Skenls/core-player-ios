@@ -26,8 +26,6 @@ enum AudioCodec: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    var usesOffsetStreamSeeking: Bool { self == .aac }
-
     var queryValue: String? {
         self == .auto ? nil : rawValue
     }
