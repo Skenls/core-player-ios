@@ -78,7 +78,7 @@ struct LogicTests {
         expect(mp3?.absoluteString.contains("session_id") == false, "omits empty session id")
         let aac = StreamURLBuilder.streamURL(baseURL: base, trackID: "t1", codec: .aac, sessionID: nil)
         expect(aac?.absoluteString.contains("format=aac") == true, "adds AAC format")
-        expect(aac?.absoluteString.contains("estimateContentLength=true") == true, "AAC adds estimateContentLength")
+        expect(aac?.absoluteString.contains("estimateContentLength=true") == false, "AAC omits estimated length for reliable duration")
         let aacOffset = StreamURLBuilder.streamURL(baseURL: base, trackID: "t1", codec: .aac, sessionID: "sid", timeOffset: 85)
         expect(aacOffset?.absoluteString.contains("format=aac") == true, "offset keeps AAC format")
         expect(aacOffset?.absoluteString.contains("timeOffset=85") == true, "adds integer time offset")
@@ -123,6 +123,14 @@ struct LogicTests {
         let subsonicSearch = try! JSONDecoder().decode(SearchResponse.self, from: subsonicSearchJSON)
         expect(subsonicSearch.tracks.count == 1 && subsonicSearch.albums.count == 1 && subsonicSearch.artists.count == 1, "decodes Subsonic singular searchResult3")
 
+        print("PlaybackDurationPolicy")
+        expect(PlaybackDurationPolicy.resolve(metadata: 229, engine: 341) == 229,
+               "metadata duration wins over an AAC transcode duration")
+        expect(PlaybackDurationPolicy.resolve(metadata: 0, engine: 341) == 341,
+               "engine duration is used only when metadata is absent")
+        expect(PlaybackDurationPolicy.resolve(metadata: 229, engine: 0) == 229,
+               "metadata duration survives a transient zero engine duration")
+
         print("PlaybackPrefetchPolicy")
         expect(PlaybackPrefetchPolicy.allows(currentIsRawFlac: false, nextIsRawFlac: false),
                "prefetch stays enabled for AAC/MP3")
@@ -154,11 +162,11 @@ struct LogicTests {
         expect(AudioCodec.aac.title == "AAC", "AAC title")
         expect(AudioCodec.allCases.map(\.rawValue) == ["auto", "mp3", "aac", "flac"], "ALAC is removed from settings")
         expect(AudioCodec(rawValue: "alac") == nil, "stored ALAC values no longer decode")
-        expect(AudioCodec.selectableCases == [.aac, .mp3], "settings list only AAC and MP3")
+        expect(AudioCodec.selectableCases == [.aac, .mp3, .flac], "settings list AAC, MP3 and FLAC")
         expect(AudioCodec.defaultCodec == .aac, "AAC is the default codec")
         expect(AudioCodec.visibleSelection(for: nil) == .aac, "new installs select AAC")
         expect(AudioCodec.visibleSelection(for: .auto) == .aac, "hidden Auto migrates to AAC")
-        expect(AudioCodec.visibleSelection(for: .flac) == .aac, "hidden FLAC migrates to AAC")
+        expect(AudioCodec.visibleSelection(for: .flac) == .flac, "FLAC selection is preserved")
         expect(AudioCodec.visibleSelection(for: .mp3) == .mp3, "MP3 selection is preserved")
         expect(TrackCache.fileExtension(for: "audio/aac") == "aac", "AAC streams cache with an aac extension")
         expect(TrackCache.fileExtension(for: "audio/mp4") == "m4a", "MP4 streams cache with an m4a extension")

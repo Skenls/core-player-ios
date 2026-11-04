@@ -1,8 +1,8 @@
 # Streaming and Server-Side Seeking
 
-Applies to Core Player iOS **v0.0.6-b**. ALAC support was removed: `format=alac` is no longer requested and ALAC is absent from Settings.
+Applies to Core Player iOS **v0.0.7-b**. ALAC support was removed: `format=alac` is no longer requested and ALAC is absent from Settings.
 
-AAC is the default selectable codec and the default transcode used for FLAC/auto seeks. Settings expose AAC and MP3 only; Auto and FLAC remain supported internally for compatibility and fallback. The same `timeOffset` mechanism is used for remote MP3 and FLAC sources because direct-play FLAC ignores the offset and MP3 transcodes can seek only inside the downloaded buffer.
+AAC is the default selectable codec and the default transcode used for FLAC/auto seeks. Settings expose AAC, MP3, and FLAC; Auto remains supported internally for compatibility and fallback. Track duration always comes from Subsonic metadata because AAC transcode duration is unreliable. The same `timeOffset` mechanism is used for remote MP3 and FLAC sources because direct-play FLAC ignores the offset and MP3 transcodes can seek only inside the downloaded buffer.
 
 ## Codec
 

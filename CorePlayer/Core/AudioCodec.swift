@@ -6,7 +6,7 @@ enum AudioCodec: String, CaseIterable, Identifiable, Hashable {
     case aac
     case flac
 
-    static let selectableCases: [AudioCodec] = [.aac, .mp3]
+    static let selectableCases: [AudioCodec] = [.aac, .mp3, .flac]
     static let defaultCodec: AudioCodec = .aac
 
     static func visibleSelection(for stored: AudioCodec?) -> AudioCodec {

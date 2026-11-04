@@ -36,7 +36,6 @@ final class PlayerStore: ObservableObject {
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var currentCodec: AudioCodec = .auto
     private var currentIsLocal = false
-    private var streamOffset = 0.0
     private var pendingSeekCompletions: [() -> Void] = []
     private var prefetchedNextForTrackID: String?
 
@@ -69,9 +68,10 @@ final class PlayerStore: ObservableObject {
         engine.onReady = { [weak self] engineDuration in
             guard let self else { return }
             self.isLoading = false
-            if self.streamOffset == 0, engineDuration > 0 {
-                self.duration = engineDuration
-            }
+            self.duration = PlaybackDurationPolicy.resolve(
+                metadata: self.duration,
+                engine: engineDuration
+            )
             self.endTransitionBackgroundTask()
             self.updateNowPlaying(force: true)
             self.finishPendingSeeks()
@@ -241,7 +241,6 @@ final class PlayerStore: ObservableObject {
         retryWork = nil
         engine.stop()
         prefetchedNextForTrackID = nil
-        streamOffset = 0
         currentIsLocal = false
         finishPendingSeeks()
         queue = QueueState()
@@ -290,7 +289,6 @@ final class PlayerStore: ObservableObject {
 
         currentTrack = track
         position = 0
-        streamOffset = 0
         duration = max(0, Double(track.duration ?? 0))
         errorMessage = nil
         isLoading = true
@@ -340,7 +338,6 @@ final class PlayerStore: ObservableObject {
         retryWork?.cancel()
         retryWork = nil
         beginTransitionBackgroundTask()
-        streamOffset = Double(offset)
         position = Double(offset)
         isLoading = true
         errorMessage = nil
@@ -394,9 +391,7 @@ final class PlayerStore: ObservableObject {
 
     private func handleTime(_ time: Double, engineDuration: Double) {
         position = time
-        if streamOffset == 0, engineDuration > 0 {
-            duration = engineDuration
-        }
+        duration = PlaybackDurationPolicy.resolve(metadata: duration, engine: engineDuration)
         if isLoading {
             isLoading = false
         }

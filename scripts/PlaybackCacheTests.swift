@@ -32,7 +32,7 @@ struct PlaybackCacheTests {
         expect(restart.contains("timeOffset: timeOffset"), "remote restart requests a server time offset")
         expect(restart.contains("startOffset: Double(offset)"), "remote restart keeps the absolute timeline")
         let handleTime = body(store, after: "private func handleTime", until: "\n    private func ")
-        expect(handleTime.contains("streamOffset == 0"), "offset stream does not replace track duration")
+        expect(handleTime.contains("PlaybackDurationPolicy.resolve"), "metadata duration is not replaced by AAC transcode duration")
         exit(failures == 0 ? 0 : 1)
     }
 }

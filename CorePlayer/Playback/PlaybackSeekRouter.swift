@@ -5,6 +5,12 @@ enum PlaybackSeekRoute: Equatable {
     case offsetStream(Int)
 }
 
+enum PlaybackDurationPolicy {
+    static func resolve(metadata: Double, engine: Double) -> Double {
+        metadata > 0 ? metadata : max(0, engine)
+    }
+}
+
 enum PlaybackPrefetchPolicy {
     static func allows(currentIsRawFlac: Bool, nextIsRawFlac: Bool) -> Bool {
         !currentIsRawFlac && !nextIsRawFlac

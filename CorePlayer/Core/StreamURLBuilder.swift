@@ -20,7 +20,7 @@ enum StreamURLBuilder {
         if let format = codec.queryValue {
             items.append(URLQueryItem(name: "format", value: format))
             // Estimated length makes transcoded durations unreliable; the bridge leaves it off for offset streams.
-            if timeOffset == nil {
+            if timeOffset == nil, codec != .aac {
                 items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
             }
         }
