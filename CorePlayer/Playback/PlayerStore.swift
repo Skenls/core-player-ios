@@ -371,10 +371,15 @@ final class PlayerStore: ObservableObject {
               prefetchedNextForTrackID != track.id,
               let nextTrack = queue.nextTrack,
               nextTrack.id != track.id else { return }
+        let nextCodec = resolvedCodec(for: nextTrack)
+        guard PlaybackPrefetchPolicy.allows(
+            currentIsRawFlac: track.isFlac && currentCodec == .auto,
+            nextIsRawFlac: nextTrack.isFlac && nextCodec == .auto
+        ) else { return }
         prefetchedNextForTrackID = track.id
         cache.prefetch(
             track: nextTrack,
-            codec: resolvedCodec(for: nextTrack),
+            codec: nextCodec,
             baseURL: api.baseURL,
             sessionID: api.sessionID
         )

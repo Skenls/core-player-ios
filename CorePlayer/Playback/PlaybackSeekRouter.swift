@@ -5,6 +5,12 @@ enum PlaybackSeekRoute: Equatable {
     case offsetStream(Int)
 }
 
+enum PlaybackPrefetchPolicy {
+    static func allows(currentIsRawFlac: Bool, nextIsRawFlac: Bool) -> Bool {
+        !currentIsRawFlac && !nextIsRawFlac
+    }
+}
+
 enum PlaybackSeekRouter {
     static func route(time: Double, isLocal: Bool) -> PlaybackSeekRoute {
         guard !isLocal else { return .avPlayer(time) }

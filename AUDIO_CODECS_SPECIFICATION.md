@@ -1,6 +1,6 @@
 # Streaming and Server-Side Seeking
 
-Applies to Core Player iOS **v0.0.4-b**. ALAC support was removed: `format=alac` is no longer requested and ALAC is absent from Settings.
+Applies to Core Player iOS **v0.0.5-b**. ALAC support was removed: `format=alac` is no longer requested and ALAC is absent from Settings.
 
 AAC is the default lossy transcode used for FLAC/auto seeks. The same `timeOffset` mechanism is used for remote MP3 and FLAC sources because direct-play FLAC ignores the offset and MP3 transcodes can seek only inside the downloaded buffer.
 
@@ -59,6 +59,8 @@ For a remote seek to `t`:
 ```text
 position = streamOffset + AVPlayer.currentTime
 ```
+
+Raw FLAC is never prefetched, and no prefetch runs while raw FLAC is playing; a second ~1 Mbit/s download starves the active stream.
 
 The original track duration is retained, so the progress bar does not shrink to the remaining offset-stream duration. Seeking again requests a new offset from the absolute target. Reaching the end still triggers repeat/next normally.
 

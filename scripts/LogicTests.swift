@@ -123,7 +123,15 @@ struct LogicTests {
         let subsonicSearch = try! JSONDecoder().decode(SearchResponse.self, from: subsonicSearchJSON)
         expect(subsonicSearch.tracks.count == 1 && subsonicSearch.albums.count == 1 && subsonicSearch.artists.count == 1, "decodes Subsonic singular searchResult3")
 
-        print("PlaybackSeekRouter")
+        print("PlaybackPrefetchPolicy")
+        expect(PlaybackPrefetchPolicy.allows(currentIsRawFlac: false, nextIsRawFlac: false),
+               "prefetch stays enabled for AAC/MP3")
+        expect(!PlaybackPrefetchPolicy.allows(currentIsRawFlac: true, nextIsRawFlac: false),
+               "no prefetch while raw FLAC is playing")
+        expect(!PlaybackPrefetchPolicy.allows(currentIsRawFlac: false, nextIsRawFlac: true),
+               "no prefetch of the next raw FLAC")
+        expect(!PlaybackPrefetchPolicy.allows(currentIsRawFlac: true, nextIsRawFlac: true),
+               "no competing raw FLAC downloads")
         expect(PlaybackSeekRouter.route(time: 85.9, isLocal: false) == .offsetStream(85),
                "remote streams seek by integer server offset")
         expect(PlaybackSeekRouter.route(time: 85.9, isLocal: true) == .avPlayer(85.9),

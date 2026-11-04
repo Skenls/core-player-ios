@@ -23,6 +23,8 @@ struct PlaybackCacheTests {
         expect(!load.isEmpty, "loadCurrent found")
         expect(!load.contains("cache.prefetch"), "startup does not prefetch current or next")
         expect(store.contains("engine.onPlaybackLikelyToKeepUp"), "next prefetch waits for healthy buffer")
+        let prefetch = body(store, after: "private func prefetchNextTrack", until: "\n    // MARK")
+        expect(prefetch.contains("PlaybackPrefetchPolicy.allows"), "prefetch policy skips raw FLAC")
         expect(engine.contains("preferredForwardBufferDuration = 0"), "automatic forward buffering")
         let seek = body(store, after: "func seek(_ time", until: "\n    func toggleShuffle")
         expect(seek.contains("PlaybackSeekRouter.route"), "seek uses the remote offset router")
