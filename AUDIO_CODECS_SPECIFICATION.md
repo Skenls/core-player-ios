@@ -1,185 +1,87 @@
-# Audio Codecs Streaming Specification: AAC-LC & ALAC
+# AAC Streaming and Offset Seeking
 
-This document outlines the technical architecture, API integration, and playback capabilities (playback, seeking, caching, performance) for **AAC-LC** and **ALAC** streams in the Core Player ecosystem.
+Applies to Core Player iOS **v0.0.3-b**. ALAC support was removed: `format=alac` is no longer requested and ALAC is absent from Settings.
 
----
+## Codec
 
-## 1. Overview & Codec Characteristics
+| Parameter | Value |
+|---|---|
+| API format | `aac` |
+| Encoding | AAC-LC, lossy |
+| Container | ADTS |
+| Typical bitrate | 192–320 kbps |
+| Cache extension | `.aac` (`audio/aac`); direct-pass MP4 remains `.m4a` |
+| iOS playback | AVPlayer |
 
-| Metric / Parameter | **AAC-LC** (Advanced Audio Coding - Low Complexity) | **ALAC** (Apple Lossless Audio Codec) |
-| :--- | :--- | :--- |
-| **API Parameter** | `format=aac` | `format=alac` |
-| **MIME Type** | `audio/aac` | `audio/mp4` |
-| **Container** | ADTS (`Audio Data Transport Stream`) | Fragmented MP4 (`fMP4` / ISO BMFF) |
-| **Compression** | Lossy (Perceptual acoustic model) | Lossless (Exact bit-for-bit reproduction) |
-| **Typical Bitrate** | 192 kbps – 320 kbps | 600 kbps – 1400+ kbps (dynamic based on track) |
-| **Transcoding CPU Overhead** | Low (~0.05 – 0.1 CPU core per stream) | Ultra-low (Lossless encoding is faster than lossy) |
-| **Target Clients** | Mobile (`core-player-android`), Cellular data | Hi-Fi / Audiophile clients, High-bandwidth WiFi |
-
----
-
-## 2. API Endpoints
-
-### 2.1 Audio Stream (`GET`)
+## Stream endpoint
 
 ```http
-GET /api/stream/{track_id}?format={codec}&estimateContentLength=true
+GET /api/stream/{track_id}?format=aac&session_id=...
 ```
 
-#### Query Parameters:
-- `track_id` (path, required): Unique identifier of the track in Navidrome.
-- `format` (query, optional): Target audio encoding.
-  - `aac`: Stream transcode/raw to AAC-LC.
-  - `alac`: Stream transcode/raw to ALAC.
-  - `opus`: Opus audio.
-  - `mp3`: MP3 audio.
-  - `flac`: FLAC lossless.
-  - `raw`: Original uncompressed/untranscoded file.
-- `estimateContentLength` (query, optional, default `true`): Allows the server to approximate content length for seek bar calculations when transcoding.
-
-#### Request Headers:
-- `Cookie: access_token=...` or `Authorization: Bearer <token>`: User authentication session.
-- `Range: bytes={start}-{end}` (optional): HTTP range request for seeking/scrubbing.
-
-#### Response Headers:
-- `HTTP/1.1 200 OK` (full stream) or `HTTP/1.1 206 Partial Content` (range response).
-- `Content-Type`: `audio/aac` for AAC, `audio/mp4` for ALAC.
-- `Accept-Ranges: bytes`: Indicates partial request support.
-- `Content-Range: bytes start-end/total` (when `Range` header was sent).
-- `X-Content-Duration: {seconds}`: Total duration of the track in seconds.
-
----
-
-### 2.2 Metadata Probing (`HEAD`)
+For a server-side seek:
 
 ```http
-HEAD /api/stream/{track_id}?format={codec}
+GET /api/stream/{track_id}?format=aac&timeOffset=85&session_id=...
 ```
 
-The Core Player API supports HTTP `HEAD` method. This allows media players (such as Android ExoPlayer / Media3) to probe headers, verify `Content-Type`, validate authentication, and inspect `Accept-Ranges` without downloading audio payload.
+- `timeOffset` is an integer number of seconds.
+- The bridge forwards it to Navidrome, where FFmpeg starts with `-ss <offset>`.
+- Offset requests do **not** send `estimateContentLength`: an estimated length makes transcoded duration unreliable.
+- Normal AAC requests keep the existing `estimateContentLength=true` behavior.
+- The bridge support is in `core-player` commit `2d3cb7a` (`feat(stream): support timeOffset parameter for transcoded audio seeking`).
 
----
+## iOS seeking behavior
 
-## 3. Playback Capabilities
+AAC restart applies only when all of these are true:
 
-### 3.1 Seamless Playback & Zero-Copy Proxying
-When deployed with Nginx (production / Docker), Core Player utilizes `X-Accel-Redirect`:
-1. The client requests `/api/stream/{track_id}?format=alac`.
-2. Core Player backend authenticates the user, resolves track credentials, and issues an internal redirect to Nginx.
-3. Nginx directly streams the audio pipeline from Navidrome via kernel space zero-copy buffers (`sendfile`), resulting in minimal Python process memory footprint.
+1. the effective selected codec is AAC;
+2. the current item is remote;
+3. the user releases the scrubber.
 
-### 3.2 Seeking and Scrubbing
-Fast, responsive seeking is essential for mobile and desktop clients:
-- **Range Requests (`bytes=...`)**:
-  - Both AAC and ALAC endpoints fully support `Range` headers.
-  - When the user scrubs the progress bar in the player, the client emits an HTTP request with `Range: bytes={byte_offset}-`.
-  - The server answers with `HTTP 206 Partial Content` containing only the requested audio segment.
-- **ALAC Fast Seeking (Fragmented MP4)**:
-  - Because ALAC is encapsulated with `-movflags +frag_keyframe+empty_moov+default_base_moof`, the stream contains self-contained movie fragments (`moof` + `mdat`).
-  - Media engines (such as Android ExoPlayer) can instantly seek to keyframe fragments without waiting to download the end of the file.
-- **AAC-LC Fast Seeking (ADTS)**:
-  - ADTS provides sync words (`0xFFF`) at the beginning of each audio frame, enabling media decoders to resume playback at arbitrary offsets.
+The local cached AAC file uses normal `AVPlayer.seek` and works offline. Other codecs keep normal byte-range seeking.
 
-### 3.3 Dynamic Transcoding vs. Direct Passthrough
-- **Direct Passthrough (Zero CPU)**:
-  If the source file in your media storage is already in ALAC format (`.m4a`) or AAC (`.aac` / `.m4a`), Navidrome streams the original bits directly without invoking FFmpeg.
-- **On-the-fly Transcoding**:
-  If the source file is FLAC, WAV, or any other format:
-  - **AAC**: Transcoded via Navidrome's built-in pipeline (`-c:a aac -f adts`).
-  - **ALAC**: Transcoded via the custom profile (`-c:a alac -f mp4 -movflags +frag_keyframe+empty_moov+default_base_moof`).
+For a remote AAC seek to `t`:
 
----
+1. `PlayerStore` requests offset `Int(t)` using `timeOffset`;
+2. replaces the current `AVPlayerItem` with a new asset;
+3. releases the scrubber only after the new item becomes ready;
+4. reports absolute playback position as:
 
-## 4. Client Integration Guides
-
-### 4.1 Android Integration (`core-player-android` / ExoPlayer / Media3)
-
-In your Android application using AndroidX Media3 (`ExoPlayer`):
-
-```kotlin
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
-import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
-
-// 1. Build HTTP Data Source with user session cookie / bearer token
-val dataSourceFactory = DefaultHttpDataSource.Factory()
-    .setUserAgent("CorePlayerAndroid/1.0")
-    .setDefaultRequestProperties(mapOf(
-        "Cookie" to "access_token=$userToken"
-    ))
-
-// 2. Select preferred codec based on network conditions
-val codecFormat = if (isWifiConnected) "alac" else "aac"
-val mimeType = if (codecFormat == "alac") MimeTypes.AUDIO_MP4 else MimeTypes.AUDIO_AAC
-
-// 3. Create MediaItem with explicit MimeType hint
-val streamUrl = "https://your-player-domain.com/api/stream/$trackId?format=$codecFormat"
-
-val mediaItem = MediaItem.Builder()
-    .setUri(streamUrl)
-    .setMimeType(mimeType)
-    .build()
-
-val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-    .createMediaSource(mediaItem)
-
-// 4. Set media source to player
-player.setMediaSource(mediaSource)
-player.prepare()
-player.play()
+```text
+position = streamOffset + AVPlayer.currentTime
 ```
 
-### 4.2 cURL CLI Verification Examples
+The original track duration is retained, so the progress bar does not shrink to the remaining offset-stream duration. Seeking again requests a new offset from the absolute target. Reaching the end still triggers repeat/next normally.
 
-#### Test AAC-LC Stream:
+## cURL checks
+
+Normal AAC stream:
+
 ```bash
-curl -I -H "Cookie: access_token=YOUR_TOKEN" \
+curl -I -H "Cookie: session_id=YOUR_SESSION" \
   "http://localhost:3000/api/stream/TRACK_ID?format=aac"
 ```
-*Expected Output:*
-```http
-HTTP/1.1 200 OK
-Content-Type: audio/aac
-Accept-Ranges: bytes
-```
 
-#### Test ALAC Stream:
+AAC stream starting at 1:25:
+
 ```bash
-curl -I -H "Cookie: access_token=YOUR_TOKEN" \
-  "http://localhost:3000/api/stream/TRACK_ID?format=alac"
-```
-*Expected Output:*
-```http
-HTTP/1.1 200 OK
-Content-Type: audio/mp4
-Accept-Ranges: bytes
+curl -I -H "Cookie: session_id=YOUR_SESSION" \
+  "http://localhost:3000/api/stream/TRACK_ID?format=aac&timeOffset=85"
 ```
 
-#### Test Range Request (Seeking from 1MB):
-```bash
-curl -i -H "Cookie: access_token=YOUR_TOKEN" \
-  -H "Range: bytes=1048576-" \
-  "http://localhost:3000/api/stream/TRACK_ID?format=alac"
-```
-*Expected Output:*
-```http
-HTTP/1.1 206 Partial Content
-Content-Type: audio/mp4
-Content-Range: bytes 1048576-.../...
-```
+Expected: `200 OK`, `Content-Type: audio/aac`, and `Accept-Ranges: bytes`. The media payload starts at approximately 85 seconds.
 
----
+## Tests
 
-## 5. Server Architecture Requirements
+- `StreamURLBuilder` includes `format=aac` and integer `timeOffset`.
+- Offset URLs omit `estimateContentLength`.
+- `PlaybackSeekRouter` sends only remote AAC seeks to offset streams.
+- `PlayerEngine` reports `streamOffset + currentTime` and keeps the known total duration.
+- Cache-extension tests cover ADTS `audio/aac` and MP4 `audio/mp4`.
 
-To serve ALAC streams on remote servers, ensure Navidrome has transcoding enabled:
-1. `EnableTranscodingConfig = true` in `/etc/navidrome/navidrome.toml` (or `ND_ENABLETRANSCODINGCONFIG=true` in Docker environment).
-2. Transcoding Profile registered in Navidrome:
-   - **Name**: `alac audio`
-   - **Target Format**: `alac`
-   - **Command**:
-     ```bash
-     ffmpeg -ss %t -i %s -map 0:a:0 -map_metadata 0 -map_metadata 0:s:a:0 -v 0 -c:a alac -f mp4 -movflags +frag_keyframe+empty_moov+default_base_moof -
-     ```
-   - **Default Bit Rate**: `0`
+## Constraints
+
+- Opus/Ogg is not supported by AVPlayer and is unchanged.
+- ALAC was removed in v0.0.3-b; stored old ALAC selections decode to Auto.
+- ALAC-specific Navidrome transcoding setup is no longer required by this app.

@@ -35,6 +35,9 @@ final class PlayerStore: ObservableObject {
     private var configured = false
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var currentCodec: AudioCodec = .auto
+    private var currentIsLocal = false
+    private var streamOffset = 0.0
+    private var pendingSeekCompletions: [() -> Void] = []
     private var prefetchedNextForTrackID: String?
 
     init(
@@ -66,11 +69,12 @@ final class PlayerStore: ObservableObject {
         engine.onReady = { [weak self] engineDuration in
             guard let self else { return }
             self.isLoading = false
-            if engineDuration > 0 {
+            if self.streamOffset == 0, engineDuration > 0 {
                 self.duration = engineDuration
             }
             self.endTransitionBackgroundTask()
             self.updateNowPlaying(force: true)
+            self.finishPendingSeeks()
         }
         engine.onPlaybackLikelyToKeepUp = { [weak self] in
             self?.prefetchNextTrack()
@@ -204,12 +208,18 @@ final class PlayerStore: ObservableObject {
     func seek(_ time: Double, completion: (() -> Void)? = nil) {
         let upper = duration > 0 ? duration : time
         let clamped = min(max(0, time), upper)
-        engine.seek(to: clamped) { [weak self] actual in
-            self?.position = actual
-            self?.updateNowPlaying(force: true)
-            completion?()
+        switch PlaybackSeekRouter.route(time: clamped, codec: currentCodec, isLocal: currentIsLocal) {
+        case .avPlayer(let target):
+            engine.seek(to: target) { [weak self] actual in
+                self?.position = actual
+                self?.updateNowPlaying(force: true)
+                completion?()
+            }
+            position = target
+        case .offsetStream(let offset):
+            restartAACStream(at: offset, completion: completion)
+            return
         }
-        position = clamped
         updateNowPlaying(force: true)
     }
 
@@ -231,6 +241,9 @@ final class PlayerStore: ObservableObject {
         retryWork = nil
         engine.stop()
         prefetchedNextForTrackID = nil
+        streamOffset = 0
+        currentIsLocal = false
+        finishPendingSeeks()
         queue = QueueState()
         queueCount = 0
         currentTrack = nil
@@ -277,6 +290,7 @@ final class PlayerStore: ObservableObject {
 
         currentTrack = track
         position = 0
+        streamOffset = 0
         duration = max(0, Double(track.duration ?? 0))
         errorMessage = nil
         isLoading = true
@@ -288,8 +302,10 @@ final class PlayerStore: ObservableObject {
         let url: URL
         if let local = cache.localURL(trackID: track.id, codec: codec) {
             url = local
+            currentIsLocal = true
         } else if let remote = api.streamURL(trackID: track.id, codec: codec) {
             url = remote
+            currentIsLocal = false
         } else {
             endTransitionBackgroundTask()
             isLoading = false
@@ -303,6 +319,40 @@ final class PlayerStore: ObservableObject {
 
         recent.add(track)
         updateNowPlaying(force: true)
+    }
+
+    private func restartAACStream(at offset: Int, completion: (() -> Void)?) {
+        guard let track = currentTrack else {
+            completion?()
+            return
+        }
+        let timeOffset = offset > 0 ? offset : nil
+        guard let url = api.streamURL(trackID: track.id, codec: .aac, timeOffset: timeOffset) else {
+            completion?()
+            errorMessage = "Не удалось построить ссылку на трек"
+            return
+        }
+
+        if let completion {
+            pendingSeekCompletions.append(completion)
+        }
+        retryWork?.cancel()
+        retryWork = nil
+        beginTransitionBackgroundTask()
+        streamOffset = Double(offset)
+        position = Double(offset)
+        isLoading = true
+        errorMessage = nil
+        audioSession.activate()
+        engine.load(url: url, autoPlay: true, startOffset: Double(offset))
+        isPlaying = true
+        updateNowPlaying(force: true)
+    }
+
+    private func finishPendingSeeks() {
+        let pending = pendingSeekCompletions
+        pendingSeekCompletions.removeAll()
+        pending.forEach { $0() }
     }
 
     /// FLAC passthrough avoids ffmpeg for native FLAC and impossible lossy-to-FLAC transcodes.
@@ -338,7 +388,7 @@ final class PlayerStore: ObservableObject {
 
     private func handleTime(_ time: Double, engineDuration: Double) {
         position = time
-        if engineDuration > 0 {
+        if streamOffset == 0, engineDuration > 0 {
             duration = engineDuration
         }
         if isLoading {
@@ -382,6 +432,7 @@ final class PlayerStore: ObservableObject {
             isLoading = false
             isPlaying = false
             errorMessage = "Не удалось воспроизвести трек. Проверьте сервер и сеть."
+            finishPendingSeeks()
             return
         }
 

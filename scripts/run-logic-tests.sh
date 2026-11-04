@@ -15,6 +15,7 @@ swiftc \
   "$ROOT/CorePlayer/Core/StreamURLBuilder.swift" \
   "$ROOT/CorePlayer/Playback/QueueState.swift" \
   "$ROOT/CorePlayer/Playback/TrackCache.swift" \
+  "$ROOT/CorePlayer/Playback/PlaybackSeekRouter.swift" \
   "$ROOT/scripts/LogicTests.swift"
 
 "$OUT"

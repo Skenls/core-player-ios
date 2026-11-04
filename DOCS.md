@@ -61,7 +61,7 @@ webplayer-ios/
 │   │   ├── Models.swift         # DTO + «терпимые» декодеры (FlexibleList и др.)
 │   │   ├── APIClient.swift      # транспорт, сессия, все эндпоинты
 │   │   ├── StreamURLBuilder.swift # URL стримов и обложек (cookie в query)
-│   │   ├── AudioCodec.swift     # auto / mp3 / aac / flac / alac
+│   │   ├── AudioCodec.swift     # auto / mp3 / aac / flac
 │   │   ├── AuthStore.swift      # логин, restore, logout
 │   │   ├── Keychain.swift       # обёртка kSecClassGenericPassword
 │   │   ├── SettingsStore.swift  # codec, background, adaptiveBubble, amoled
@@ -218,7 +218,7 @@ webplayer-ios/
 - Фон: «Под обложку» — blur обложки + затемнение 0.82; иначе плоский фон; AMOLED — чистый чёрный.
 
 ### 5.8 Settings (sheet)
-Фон плеера (Под обложку/Тёмный), AMOLED, Адаптивный пузырь, Кодек (Авто/MP3/AAC/FLAC/ALAC; подпись «Opus недоступен на iOS»), Аккаунт (адрес сервера, «Выйти»).
+Фон плеера (Под обложку/Тёмный), AMOLED, Адаптивный пузырь, Кодек (Авто/MP3/AAC/FLAC; подпись «Opus недоступен на iOS»), Аккаунт (адрес сервера, «Выйти»).
 
 ---
 
@@ -240,7 +240,8 @@ webplayer-ios/
   3. `RecentStore.add`;
   4. prefetch **только следующего** трека, и только после сигнала `isPlaybackLikelyToKeepUp` (текущий не качается: двойной трафик душил стрим — прошлый баг);
   5. обновление Now Playing.
-- Seek из UI — точный (tolerance 0); completion вызывается после завершения или прерывания seek, UI снимает удержание позиции только по нему.
+- Seek локального файла и потоков auto/MP3/FLAC — точный (tolerance 0); completion вызывается после завершения или прерывания seek, UI снимает удержание позиции только по нему.
+- **AAC seek через новый поток:** если выбран AAC и текущий трек не локальный, `PlayerStore` не вызывает `AVPlayer.seek`, а заменяет item на `/api/stream/{id}?format=aac&timeOffset=<целые секунды>`. Бридж передаёт смещение в Navidrome, FFmpeg начинает вывод с этого места. `PlayerEngine` прибавляет offset к `currentTime` и ко всем time-callbacks, поэтому таймлайн продолжается с выбранной секунды; общая длительность трека сохраняется, а не заменяется длительностью остатка. Completion для UI срабатывает после готовности нового item. Загруженный в кэш AAC по-прежнему ищется локально без сети. Для offset-запроса `estimateContentLength` не передаётся.
 
 ### 6.3 AVAudioSession
 - Категория `.playback` без опций; активируется на play/load, деактивируется на stop/logout с `notifyOthersOnDeactivation`.
@@ -257,7 +258,7 @@ webplayer-ios/
 2. Потоковое воспроизведение (`preferredForwardBufferDuration = 0`) с автовозобновлением при `isPlaybackLikelyToKeepUp`; автоматический размер буфера не задерживает старт FLAC/MP3.
 3. Убран деструктивный watchdog с принудительными `pause()+play()`, сбрасывавшими буферизацию.
 4. `auto` теперь шлёт URL без лишних параметров: сырой файл с честным Content-Length (Android parity).
-5. `estimateContentLength=true` только при явном codec (mp3/aac/flac/alac) — на транскоде.
+5. `estimateContentLength=true` только при явном codec (mp3/aac/flac) и только без `timeOffset` — оценка длины искажает длительность транскода.
 
 Базовая AVPlayer-проба против живого backend ранее проходила на FLAC и MP3; итоговое поведение этой сборки проверяется на устройстве, локального Xcode/симулятора нет.
 
@@ -311,7 +312,7 @@ webplayer-ios/
 | GET | `/api/library/random?size=` | случайные треки |
 | GET | `/api/library/search?q=` | треки + альбомы + исполнители |
 | GET | `/api/lyrics/{id}?artist=&title=[&album=][&duration=]` | текст (LRC) |
-| GET | `/api/stream/{id}[?format=mp3|aac|flac|alac&estimateContentLength=true&session_id=]` | аудиострим, Range/206 |
+| GET | `/api/stream/{id}[?format=mp3|aac|flac&timeOffset=N&estimateContentLength=true&session_id=]` | аудиострим, Range/206 |
 | GET | `/api/stream/cover/{coverId}?size=&session_id=` | обложка |
 
 Backend сам ничего не транскодирует — `format` передаётся в Navidrome.
@@ -374,7 +375,7 @@ Info.plist: `UIUserInterfaceStyle: Dark`, пустой launch screen, ориен
 
 | Настройка | Тип | Эффект |
 |---|---|---|
-| Кодек | auto / mp3 / aac / flac / alac | влияет на URL стрима; mp3/aac/flac/alac → `format=` + `estimateContentLength=true`; auto — сырой файл; flac/alac — без потерь |
+| Кодек | auto / mp3 / aac / flac | влияет на URL стрима; mp3/aac/flac → `format=` + `estimateContentLength=true`; auto — сырой файл; flac — без потерь |
 | Фон плеера | cover / dark | blurred обложка в Now Playing против плоского фона |
 | AMOLED | bool | чистый чёрный фон |
 | Адаптивный пузырь | bool | мини-плееру градиент из палитры обложки вместо фиксированного |
@@ -452,7 +453,7 @@ zip -r CorePlayer.ipa Payload
 | Аудио-движок | ExoPlayer (Media3) | AVPlayer |
 | Opus/Ogg | играет | **не играет** (исключено сознательно) |
 | Кроссфейд | есть | **нет** (по требованию) |
-| Кодеки | auto / mp3 / aac / flac / alac | те же, но Opus/Ogg не поддерживается |
+| Кодеки | auto / mp3 / aac / flac | те же, но Opus/Ogg не поддерживается; ALAC удалён в v0.0.3-b |
 | Кэш файлов | ExoPlayer SimpleCache (байтовые диапазоны) | целые файлы, LRU 500 МБ, prefetch следующего |
 | Ландшафт | two-column плеер | two-column плеер |
 | Ноль экрана очереди | нет отдельного экрана | нет отдельного экрана |

@@ -102,6 +102,20 @@ struct PlaybackEngineTests {
         expect(abs(engine.currentTime - 2.2) < 0.2, "latest seek wins")
         engine.stop()
 
+        let offsetEngine = PlayerEngine()
+        var offsetReady = false
+        var offsetTicked = false
+        offsetEngine.onReady = { _ in offsetReady = true }
+        offsetEngine.onTime = { position, _ in
+            if position >= 85.2 { offsetTicked = true }
+        }
+        offsetEngine.load(url: url, autoPlay: false, startOffset: 85)
+        expect(wait(until: { offsetReady }), "offset stream becomes ready")
+        expect(abs(offsetEngine.currentTime - 85) < 0.2, "offset starts timeline at target")
+        offsetEngine.play()
+        expect(wait(until: { offsetTicked }), "offset timeline continues from target")
+        offsetEngine.stop()
+
         if failures > 0 {
             print("\(failures) playback engine test(s) failed")
             exit(1)

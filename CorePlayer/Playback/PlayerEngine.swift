@@ -9,6 +9,7 @@ final class PlayerEngine {
     private var itemBufferEmptyObserver: NSKeyValueObservation?
     private var stallObserver: NSObjectProtocol?
     private var userWantsPlayback = false
+    private var playbackOffset = 0.0
     private var didNotifyPlaybackHealthy = false
     var onTime: ((Double, Double) -> Void)?
     var onEnded: (() -> Void)?
@@ -28,7 +29,7 @@ final class PlayerEngine {
             let position = time.seconds.isFinite ? max(0, time.seconds) : 0
             let itemDuration = self.player.currentItem?.duration.seconds ?? 0
             let duration = itemDuration.isFinite ? max(0, itemDuration) : 0
-            self.onTime?(position, duration)
+            self.onTime?(position + self.playbackOffset, duration)
         }
 
         endObserver = NotificationCenter.default.addObserver(
@@ -69,8 +70,9 @@ final class PlayerEngine {
         }
     }
 
-    func load(url: URL, autoPlay: Bool = true) {
+    func load(url: URL, autoPlay: Bool = true, startOffset: Double = 0) {
         userWantsPlayback = autoPlay
+        playbackOffset = max(0, startOffset)
         cleanupItemObservers()
 
         let item = AVPlayerItem(url: url)
@@ -147,7 +149,8 @@ final class PlayerEngine {
     }
 
     func seek(to time: Double, completion: ((Double) -> Void)? = nil) {
-        let target = CMTime(seconds: max(0, time), preferredTimescale: 600)
+        let relative = max(0, time - playbackOffset)
+        let target = CMTime(seconds: relative, preferredTimescale: 600)
         player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self else {
@@ -158,13 +161,14 @@ final class PlayerEngine {
                     self.player.play()
                 }
                 let actual = self.player.currentTime().seconds
-                completion?(actual.isFinite ? actual : time)
+                completion?(actual.isFinite ? actual + self.playbackOffset : time)
             }
         }
     }
 
     func stop() {
         userWantsPlayback = false
+        playbackOffset = 0
         player.pause()
         cleanupItemObservers()
         player.replaceCurrentItem(with: nil)
@@ -172,7 +176,7 @@ final class PlayerEngine {
 
     var currentTime: Double {
         let seconds = player.currentTime().seconds
-        return seconds.isFinite ? max(0, seconds) : 0
+        return seconds.isFinite ? max(0, seconds) + playbackOffset : playbackOffset
     }
 
     var duration: Double {

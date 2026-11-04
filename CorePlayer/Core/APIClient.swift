@@ -203,12 +203,13 @@ final class APIClient {
 
     // MARK: - URLs
 
-    func streamURL(trackID: String, codec: AudioCodec) -> URL? {
+    func streamURL(trackID: String, codec: AudioCodec, timeOffset: Int? = nil) -> URL? {
         StreamURLBuilder.streamURL(
             baseURL: baseURL,
             trackID: trackID,
             codec: codec,
-            sessionID: sessionID
+            sessionID: sessionID,
+            timeOffset: timeOffset
         )
     }
 

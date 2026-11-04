@@ -79,9 +79,11 @@ struct LogicTests {
         let aac = StreamURLBuilder.streamURL(baseURL: base, trackID: "t1", codec: .aac, sessionID: nil)
         expect(aac?.absoluteString.contains("format=aac") == true, "adds AAC format")
         expect(aac?.absoluteString.contains("estimateContentLength=true") == true, "AAC adds estimateContentLength")
-        let alac = StreamURLBuilder.streamURL(baseURL: base, trackID: "t1", codec: .alac, sessionID: nil)
-        expect(alac?.absoluteString.contains("format=alac") == true, "adds ALAC format")
-        expect(alac?.absoluteString.contains("estimateContentLength=true") == true, "ALAC adds estimateContentLength")
+        let aacOffset = StreamURLBuilder.streamURL(baseURL: base, trackID: "t1", codec: .aac, sessionID: "sid", timeOffset: 85)
+        expect(aacOffset?.absoluteString.contains("format=aac") == true, "offset keeps AAC format")
+        expect(aacOffset?.absoluteString.contains("timeOffset=85") == true, "adds integer time offset")
+        expect(aacOffset?.absoluteString.contains("estimateContentLength=true") == false, "offset omits estimateContentLength")
+        expect(aacOffset?.absoluteString.contains("session_id=sid") == true, "offset keeps session id")
         let cover = StreamURLBuilder.coverURL(baseURL: base, coverID: "al-1", size: 600, sessionID: "sid")
         expect(cover?.absoluteString.contains("/api/stream/cover/al-1") == true, "builds cover path")
         expect(cover?.absoluteString.contains("size=600") == true, "adds cover size")
@@ -121,15 +123,25 @@ struct LogicTests {
         let subsonicSearch = try! JSONDecoder().decode(SearchResponse.self, from: subsonicSearchJSON)
         expect(subsonicSearch.tracks.count == 1 && subsonicSearch.albums.count == 1 && subsonicSearch.artists.count == 1, "decodes Subsonic singular searchResult3")
 
+        print("PlaybackSeekRouter")
+        expect(PlaybackSeekRouter.route(time: 85.9, codec: .aac, isLocal: false) == .offsetStream(85),
+               "remote AAC seeks by integer stream offset")
+        expect(PlaybackSeekRouter.route(time: 85.9, codec: .aac, isLocal: true) == .avPlayer(85.9),
+               "cached AAC seeks locally")
+        expect(PlaybackSeekRouter.route(time: 85.9, codec: .mp3, isLocal: false) == .avPlayer(85.9),
+               "non-AAC keeps AVPlayer seeking")
+
         print("AudioCodec")
         expect(AudioCodec.auto.queryValue == nil, "auto has no query value")
         expect(AudioCodec.flac.queryValue == "flac", "flac query value")
         expect(AudioCodec.aac.queryValue == "aac", "AAC query value")
-        expect(AudioCodec.alac.queryValue == "alac", "ALAC query value")
         expect(AudioCodec.aac.title == "AAC", "AAC title")
-        expect(AudioCodec.alac.title == "ALAC", "ALAC title")
+        expect(AudioCodec.allCases.map(\.rawValue) == ["auto", "mp3", "aac", "flac"], "ALAC is removed from settings")
+        expect(AudioCodec(rawValue: "alac") == nil, "stored ALAC values no longer decode")
+        expect(AudioCodec.aac.usesOffsetStreamSeeking, "AAC seeks through a server-side offset stream")
+        expect(!AudioCodec.mp3.usesOffsetStreamSeeking, "MP3 keeps AVPlayer seeking")
         expect(TrackCache.fileExtension(for: "audio/aac") == "aac", "AAC streams cache with an aac extension")
-        expect(TrackCache.fileExtension(for: "audio/mp4") == "m4a", "MP4/ALAC streams cache with an m4a extension")
+        expect(TrackCache.fileExtension(for: "audio/mp4") == "m4a", "MP4 streams cache with an m4a extension")
 
         if failures == 0 {
             print("\nAll logic tests passed.")

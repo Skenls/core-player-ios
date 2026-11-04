@@ -5,7 +5,8 @@ enum StreamURLBuilder {
         baseURL: URL,
         trackID: String,
         codec: AudioCodec,
-        sessionID: String?
+        sessionID: String?,
+        timeOffset: Int? = nil
     ) -> URL? {
         let url = baseURL
             .appendingPathComponent("api")
@@ -18,7 +19,13 @@ enum StreamURLBuilder {
         // Android parity: "auto" streams the raw file with no extra params.
         if let format = codec.queryValue {
             items.append(URLQueryItem(name: "format", value: format))
-            items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
+            // Estimated length makes transcoded durations unreliable; the bridge leaves it off for offset streams.
+            if timeOffset == nil {
+                items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
+            }
+        }
+        if let timeOffset {
+            items.append(URLQueryItem(name: "timeOffset", value: String(timeOffset)))
         }
         if let sessionID = sessionID, !sessionID.isEmpty {
             items.append(URLQueryItem(name: "session_id", value: sessionID))

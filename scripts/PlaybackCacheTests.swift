@@ -24,6 +24,13 @@ struct PlaybackCacheTests {
         expect(!load.contains("cache.prefetch"), "startup does not prefetch current or next")
         expect(store.contains("engine.onPlaybackLikelyToKeepUp"), "next prefetch waits for healthy buffer")
         expect(engine.contains("preferredForwardBufferDuration = 0"), "automatic forward buffering")
+        let seek = body(store, after: "func seek(_ time", until: "\n    func toggleShuffle")
+        expect(seek.contains("PlaybackSeekRouter.route"), "seek uses the AAC offset router")
+        let restart = body(store, after: "private func restartAACStream", until: "\n    private func finishPendingSeeks")
+        expect(restart.contains("timeOffset: timeOffset"), "AAC restart requests a server time offset")
+        expect(restart.contains("startOffset: Double(offset)"), "AAC restart keeps the absolute timeline")
+        let handleTime = body(store, after: "private func handleTime", until: "\n    private func ")
+        expect(handleTime.contains("streamOffset == 0"), "offset stream does not replace track duration")
         exit(failures == 0 ? 0 : 1)
     }
 }
