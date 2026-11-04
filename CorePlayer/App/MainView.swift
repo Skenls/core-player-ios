@@ -12,20 +12,17 @@ struct MainView: View {
     @State private var showNowPlaying = false
 
     var body: some View {
-        ZStack {
-            tab(.home) { HomeView() }
-            tab(.search) { SearchView() }
-            tab(.browse) { BrowseView() }
-            tab(.library) { LibraryView() }
+        VStack(spacing: 0) {
+            ZStack {
+                tab(.home) { HomeView() }
+                tab(.search) { SearchView() }
+                tab(.browse) { BrowseView() }
+                tab(.library) { LibraryView() }
+            }
+            MiniPlayerView(openPlayer: { showNowPlaying = true })
+            CoreTabBar(selection: $selected)
         }
         .background((settings.amoled ? Color.black : CoreColors.background).ignoresSafeArea())
-        // Reserve layout space so every scroll view can reach its last row above the player.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                MiniPlayerView(openPlayer: { showNowPlaying = true })
-                CoreTabBar(selection: $selected)
-            }
-        }
         .fullScreenCover(isPresented: $showNowPlaying) {
             NowPlayingView()
         }

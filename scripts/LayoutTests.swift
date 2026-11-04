@@ -16,8 +16,12 @@ struct LayoutTests {
     static func main() {
         let root = CommandLine.arguments[1]
         let main = source(root, "CorePlayer/App/MainView.swift")
-        check(main.contains("safeAreaInset(edge: .bottom") && main.contains("MiniPlayerView"),
-              "mini-player participates in bottom layout")
+        check(main.contains("MiniPlayerView") && main.contains("CoreTabBar"),
+              "mini-player and tab bar share the bottom layout")
+        check(!main.contains("safeAreaInset(edge: .bottom"), "bottom bar is not a safe-area overlay")
+        let nowPlaying = source(root, "CorePlayer/Features/NowPlaying/NowPlayingView.swift")
+        check(nowPlaying.contains(".clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))"),
+              "full-screen artwork clips its composed background and shadow layer")
         check(!main.contains(".overlay(alignment: .bottom)"), "mini-player is not an overlay")
 
         let screens = [

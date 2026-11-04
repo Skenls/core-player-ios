@@ -50,7 +50,10 @@ final class SettingsStore: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.codec = AudioCodec(rawValue: defaults.string(forKey: Keys.codec) ?? "") ?? .auto
+        let storedCodec = AudioCodec(rawValue: defaults.string(forKey: Keys.codec) ?? "")
+        let selectedCodec = AudioCodec.visibleSelection(for: storedCodec)
+        self.codec = selectedCodec
+        defaults.set(selectedCodec.rawValue, forKey: Keys.codec)
         self.background = PlayerBackground(rawValue: defaults.string(forKey: Keys.background) ?? "") ?? .cover
         self.adaptiveBubble = defaults.object(forKey: Keys.adaptiveBubble) as? Bool ?? true
         self.amoled = defaults.object(forKey: Keys.amoled) as? Bool ?? false

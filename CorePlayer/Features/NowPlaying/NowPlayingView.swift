@@ -145,6 +145,7 @@ struct NowPlayingView: View {
             pixelSize: 1200
         )
         .background(CoreColors.surfaceVariant)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: Color.black.opacity(0.8), radius: 22, x: 0, y: 12)
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.3)) { showLyrics = true }

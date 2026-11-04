@@ -19,9 +19,8 @@ struct SettingsView: View {
                 }
                 Section("Качество аудио") {
                     Picker("Кодек", selection: $settings.codec) {
-                        ForEach(AudioCodec.allCases) { Text($0.title).tag($0) }
+                        ForEach(AudioCodec.selectableCases) { Text($0.title).tag($0) }
                     }
-                    Text("Opus недоступен на iOS").font(.caption).foregroundColor(.secondary)
                 }
                 Section("Аккаунт") {
                     Text(auth.serverURLString).font(.caption)

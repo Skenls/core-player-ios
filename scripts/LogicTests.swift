@@ -154,6 +154,12 @@ struct LogicTests {
         expect(AudioCodec.aac.title == "AAC", "AAC title")
         expect(AudioCodec.allCases.map(\.rawValue) == ["auto", "mp3", "aac", "flac"], "ALAC is removed from settings")
         expect(AudioCodec(rawValue: "alac") == nil, "stored ALAC values no longer decode")
+        expect(AudioCodec.selectableCases == [.aac, .mp3], "settings list only AAC and MP3")
+        expect(AudioCodec.defaultCodec == .aac, "AAC is the default codec")
+        expect(AudioCodec.visibleSelection(for: nil) == .aac, "new installs select AAC")
+        expect(AudioCodec.visibleSelection(for: .auto) == .aac, "hidden Auto migrates to AAC")
+        expect(AudioCodec.visibleSelection(for: .flac) == .aac, "hidden FLAC migrates to AAC")
+        expect(AudioCodec.visibleSelection(for: .mp3) == .mp3, "MP3 selection is preserved")
         expect(TrackCache.fileExtension(for: "audio/aac") == "aac", "AAC streams cache with an aac extension")
         expect(TrackCache.fileExtension(for: "audio/mp4") == "m4a", "MP4 streams cache with an m4a extension")
 
