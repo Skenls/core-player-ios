@@ -131,6 +131,18 @@ struct LogicTests {
         expect(PlaybackDurationPolicy.resolve(metadata: 229, engine: 0) == 229,
                "metadata duration survives a transient zero engine duration")
 
+        print("PlaybackEndPolicy")
+        expect(PlaybackEndPolicy.resolve(position: 126.9, itemDuration: 140, trusted: 127) == .advance,
+               "a real end advances even when the transcode duration overshoots")
+        expect(PlaybackEndPolicy.resolve(position: 87, itemDuration: 140, trusted: 127) == .resume(position: 87),
+               "an early end resumes at the same point")
+        expect(PlaybackEndPolicy.resolve(position: 0.5, itemDuration: 140, trusted: 127) == .resume(position: 0.5),
+               "a starved start resumes")
+        expect(PlaybackEndPolicy.resolve(position: 87, itemDuration: 89, trusted: 0) == .advance,
+               "without trusted metadata the item duration decides")
+        expect(PlaybackEndPolicy.resolve(position: 87, itemDuration: 0, trusted: 0) == .advance,
+               "an unknown duration never blocks auto-advance")
+
         print("PlaybackPrefetchPolicy")
         expect(PlaybackPrefetchPolicy.allows(currentIsRawFlac: false, nextIsRawFlac: false),
                "prefetch stays enabled for AAC/MP3")

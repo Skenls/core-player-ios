@@ -59,7 +59,7 @@ struct AlbumDetailView: View {
                         .foregroundColor(.white)
                         .lineLimit(3)
 
-                    Text(album.artist?.isEmpty == false ? album.artist! : "Неизвестный исполнитель")
+                    Text(album.artist?.isEmpty == false ? album.displayArtist : "Неизвестный исполнитель")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(CoreColors.textSecondary)
                         .lineLimit(1)

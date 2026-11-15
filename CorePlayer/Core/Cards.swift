@@ -11,33 +11,11 @@ struct AlbumCard: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(CoreColors.textPrimary)
                 .lineLimit(1)
-            Text(subtitle ?? (album.artist?.isEmpty == false ? album.artist! : "Альбом"))
+            Text(subtitle ?? (album.displayArtist.isEmpty ? "Альбом" : album.displayArtist))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(CoreColors.textSecondary)
                 .lineLimit(1)
         }
-    }
-}
-
-struct ArtistCard: View {
-    let artist: ArtistDto
-    var size: CGFloat = 84
-
-    var body: some View {
-        VStack(spacing: 8) {
-            CoverView(
-                coverID: artist.effectiveCover,
-                size: size,
-                cornerRadius: size / 2,
-                pixelSize: 300
-            )
-            Text(artist.name)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(CoreColors.textPrimary)
-                .lineLimit(1)
-                .frame(maxWidth: 96)
-        }
-        .frame(width: 100)
     }
 }
 
@@ -53,7 +31,7 @@ struct ArtistRow: View {
                 pixelSize: 300
             )
             VStack(alignment: .leading, spacing: 3) {
-                Text(artist.name)
+                Text(artist.displayName)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(CoreColors.textPrimary)
                     .lineLimit(1)

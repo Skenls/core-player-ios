@@ -62,12 +62,12 @@ struct BrowseView: View {
                 LazyVStack(spacing: 2) {
                     ForEach(vm.artists) { artist in
                         NavigationLink(
-                            destination: ArtistDetailView(artistID: artist.id, initialTitle: artist.name)
+                            destination: ArtistDetailView(artistID: artist.id, initialTitle: artist.displayName)
                         ) {
                             HStack(spacing: 12) {
                                 CoverView(coverID: artist.effectiveCover, size: 54, cornerRadius: 27)
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(artist.name)
+                                    Text(artist.displayName)
                                         .font(.system(size: 15, weight: .semibold))
                                         .foregroundColor(.white)
                                     Text(Formatters.albumCount(artist.albumCount))

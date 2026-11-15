@@ -5,7 +5,6 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var randomTracks: [TrackDto] = []
     @Published private(set) var favoriteTracks: [TrackDto] = []
     @Published private(set) var playlists: [PlaylistDto] = []
-    @Published private(set) var artists: [ArtistDto] = []
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
 
@@ -34,13 +33,7 @@ final class HomeViewModel: ObservableObject {
             if firstError == nil { firstError = (error as? LocalizedError)?.errorDescription }
         }
 
-        do {
-            artists = try await api.artists()
-        } catch {
-            if firstError == nil { firstError = (error as? LocalizedError)?.errorDescription }
-        }
-
-        if randomTracks.isEmpty && favoriteTracks.isEmpty && playlists.isEmpty && artists.isEmpty {
+        if randomTracks.isEmpty && favoriteTracks.isEmpty && playlists.isEmpty {
             errorMessage = firstError ?? "Не удалось загрузить библиотеку"
         }
         isLoading = false
@@ -81,7 +74,6 @@ struct HomeView: View {
                         recentSection
                         favoritesSection
                         playlistsSection
-                        artistsSection
                     }
                 }
                 .padding(.horizontal, 16)
@@ -201,35 +193,6 @@ struct HomeView: View {
                                 )
                             ) {
                                 PlaylistCard(playlist: playlist)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-        }
-    }
-
-    private var artistsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Исполнители")
-
-            if vm.artists.isEmpty {
-                Text("Исполнители не найдены")
-                    .font(.system(size: 13))
-                    .foregroundColor(CoreColors.textSecondary)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 16) {
-                        ForEach(vm.artists) { artist in
-                            NavigationLink(
-                                destination: ArtistDetailView(
-                                    artistID: artist.id,
-                                    initialTitle: artist.name
-                                )
-                            ) {
-                                ArtistCard(artist: artist)
                             }
                             .buttonStyle(.plain)
                         }

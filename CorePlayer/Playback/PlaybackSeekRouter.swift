@@ -11,6 +11,23 @@ enum PlaybackDurationPolicy {
     }
 }
 
+enum PlaybackEndDecision: Equatable {
+    case advance
+    case resume(position: Double)
+}
+
+enum PlaybackEndPolicy {
+    /// A stream can end before its content is fully delivered when the screen is
+    /// locked (network starvation) or when a transcode's estimated duration runs
+    /// past the real content. Only reaching the trusted duration counts as a real end.
+    static func resolve(position: Double, itemDuration: Double, trusted: Double) -> PlaybackEndDecision {
+        let reference = trusted > 0 ? trusted : itemDuration
+        guard reference > 2, reference.isFinite else { return .advance }
+        let gap = reference - max(0, position)
+        return gap > 2 ? .resume(position: max(0, position)) : .advance
+    }
+}
+
 enum PlaybackPrefetchPolicy {
     static func allows(currentIsRawFlac: Bool, nextIsRawFlac: Bool) -> Bool {
         !currentIsRawFlac && !nextIsRawFlac

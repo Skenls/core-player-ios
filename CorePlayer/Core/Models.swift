@@ -153,6 +153,11 @@ struct AlbumDto: Codable, Identifiable, Equatable, Hashable {
     let year: Int?
     let genre: String?
     let created: String?
+
+    var displayArtist: String {
+        let cleaned = cleanArtistName(artist)
+        return cleaned.isEmpty ? (artist ?? "") : cleaned
+    }
 }
 
 struct ArtistDto: Codable, Identifiable, Equatable, Hashable {
@@ -165,6 +170,11 @@ struct ArtistDto: Codable, Identifiable, Equatable, Hashable {
     /// Navidrome accepts the artist id as a cover-art id (`ar-...`).
     var effectiveCover: String? {
         coverArt ?? artistImageUrl ?? id
+    }
+
+    var displayName: String {
+        let cleaned = cleanArtistName(name)
+        return cleaned.isEmpty ? name : cleaned
     }
 }
 
@@ -198,6 +208,11 @@ struct ArtistWithAlbumsDto: Codable, Identifiable, Equatable {
     let coverArt: String?
     let artistImageUrl: String?
     let albums: [AlbumDto]?
+
+    var displayName: String {
+        let cleaned = cleanArtistName(name)
+        return cleaned.isEmpty ? name : cleaned
+    }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, albumCount, coverArt, artistImageUrl, albums, album

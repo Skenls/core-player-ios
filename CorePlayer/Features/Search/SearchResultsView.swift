@@ -41,12 +41,12 @@ struct SearchResultsView: View {
                     SectionHeader(title: "Исполнители")
                     ForEach(results.artists) { artist in
                         NavigationLink(
-                            destination: ArtistDetailView(artistID: artist.id, initialTitle: artist.name)
+                            destination: ArtistDetailView(artistID: artist.id, initialTitle: artist.displayName)
                         ) {
                             HStack(spacing: 12) {
                                 CoverView(coverID: artist.effectiveCover, size: 52, cornerRadius: 26)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(artist.name).font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+                                    Text(artist.displayName).font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
                                     Text(Formatters.albumCount(artist.albumCount))
                                         .font(.system(size: 12)).foregroundColor(CoreColors.textSecondary)
                                 }

@@ -51,7 +51,7 @@ struct ArtistDetailView: View {
             .padding(.bottom, 28)
         }
         .background((settings.amoled ? Color.black : CoreColors.background).ignoresSafeArea())
-        .navigationTitle(artist?.name ?? initialTitle)
+        .navigationTitle(artist?.displayName ?? initialTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
         .refreshable { await load() }
@@ -63,7 +63,7 @@ struct ArtistDetailView: View {
             CoverView(coverID: artist.effectiveCover, size: 150, cornerRadius: 75, pixelSize: 600)
                 .shadow(color: .black.opacity(0.45), radius: 18, y: 8)
             VStack(spacing: 4) {
-                Text(artist.name)
+                Text(artist.displayName)
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
@@ -129,7 +129,7 @@ struct ArtistDetailView: View {
             do {
                 let detail = try await api.albumDetail(id: first.id)
                 guard !detail.tracks.isEmpty else { return }
-                player.playAll(detail.tracks, source: artist?.name ?? initialTitle, shuffled: shuffled)
+                player.playAll(detail.tracks, source: artist?.displayName ?? initialTitle, shuffled: shuffled)
             } catch {
                 errorMessage = error.localizedDescription
             }

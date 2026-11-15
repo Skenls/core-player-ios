@@ -12,7 +12,7 @@ final class PlayerEngine {
     private var playbackOffset = 0.0
     private var didNotifyPlaybackHealthy = false
     var onTime: ((Double, Double) -> Void)?
-    var onEnded: (() -> Void)?
+    var onEnded: ((Double, Double) -> Void)?
     var onError: ((Error?) -> Void)?
     var onReady: ((Double) -> Void)?
     var onPlaybackLikelyToKeepUp: (() -> Void)?
@@ -41,16 +41,14 @@ final class PlayerEngine {
                   let item = notification.object as? AVPlayerItem,
                   item === self.player.currentItem else { return }
 
-            let currentTime = self.player.currentTime().seconds
+            // The store decides with the trusted duration whether this is a real end
+            // or a starved stream that only reached the end of its delivered data.
+            let current = self.player.currentTime().seconds
             let duration = item.duration.seconds
-            // Guard against premature lock-screen cutoff caused by network chunk starvation
-            if duration.isFinite && duration > 2.0 && (duration - currentTime) > 2.0 {
-                if self.userWantsPlayback && self.player.rate == 0 {
-                    self.player.play()
-                }
-                return
-            }
-            self.onEnded?()
+            self.onEnded?(
+                (current.isFinite ? max(0, current) : 0) + self.playbackOffset,
+                duration.isFinite ? max(0, duration) : 0
+            )
         }
 
         stallObserver = NotificationCenter.default.addObserver(

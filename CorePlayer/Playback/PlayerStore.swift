@@ -38,6 +38,8 @@ final class PlayerStore: ObservableObject {
     private var currentIsLocal = false
     private var pendingSeekCompletions: [() -> Void] = []
     private var prefetchedNextForTrackID: String?
+    private var endResumeCount = 0
+    private var transitionTaskRenewals = 0
 
     init(
         api: APIClient,
@@ -59,8 +61,8 @@ final class PlayerStore: ObservableObject {
         engine.onTime = { [weak self] time, engineDuration in
             self?.handleTime(time, engineDuration: engineDuration)
         }
-        engine.onEnded = { [weak self] in
-            self?.handleEnded()
+        engine.onEnded = { [weak self] position, itemDuration in
+            self?.handleEnded(position: position, itemDuration: itemDuration)
         }
         engine.onError = { [weak self] error in
             self?.handleError(error)
@@ -261,8 +263,19 @@ final class PlayerStore: ObservableObject {
     private func beginTransitionBackgroundTask() {
         endTransitionBackgroundTask()
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "TrackTransition") { [weak self] in
-            self?.endTransitionBackgroundTask()
+            self?.handleTransitionTaskExpiration()
         }
+    }
+
+    /// Keep the app alive while the next track buffers after a background track end;
+    /// letting the task expire lets iOS suspend the app and stall auto-advance.
+    private func handleTransitionTaskExpiration() {
+        guard isLoading, isPlaying, transitionTaskRenewals < 10 else {
+            endTransitionBackgroundTask()
+            return
+        }
+        transitionTaskRenewals += 1
+        beginTransitionBackgroundTask()
     }
 
     private func endTransitionBackgroundTask() {
@@ -286,6 +299,8 @@ final class PlayerStore: ObservableObject {
         if !isRetry {
             didRetry = false
         }
+        endResumeCount = 0
+        transitionTaskRenewals = 0
 
         currentTrack = track
         position = 0
@@ -401,7 +416,20 @@ final class PlayerStore: ObservableObject {
         }
     }
 
-    private func handleEnded() {
+    private func handleEnded(position: Double, itemDuration: Double) {
+        if case .resume(let at) = PlaybackEndPolicy.resolve(
+            position: position,
+            itemDuration: itemDuration,
+            trusted: duration
+        ), endResumeCount < 3 {
+            // The stream ran out of data early (starved while locked): resume at the same point.
+            endResumeCount += 1
+            seek(at)
+            isPlaying = true
+            updateNowPlaying(force: true)
+            return
+        }
+
         if repeatMode == .one {
             seek(0)
             engine.play()

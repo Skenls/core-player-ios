@@ -33,6 +33,15 @@ struct PlaybackCacheTests {
         expect(restart.contains("startOffset: Double(offset)"), "remote restart keeps the absolute timeline")
         let handleTime = body(store, after: "private func handleTime", until: "\n    private func ")
         expect(handleTime.contains("PlaybackDurationPolicy.resolve"), "metadata duration is not replaced by AAC transcode duration")
+        let handleEnded = body(store, after: "private func handleEnded", until: "\n    private func handleError")
+        expect(handleEnded.contains("PlaybackEndPolicy.resolve"), "track end is judged by the trusted duration")
+        expect(handleEnded.contains("endResumeCount < 3"), "early endings resume a bounded number of times")
+        expect(handleEnded.contains("seek(at)"), "early endings resume through the seek router")
+        let expiration = body(store, after: "private func handleTransitionTaskExpiration", until: "\n    // MARK: - Loading")
+        expect(expiration.contains("isLoading, isPlaying"), "background task renews only while a track is loading")
+        expect(expiration.contains("transitionTaskRenewals < 10"), "background task renewal is bounded")
+        expect(engine.contains("playbackOffset,"), "engine reports absolute position to the store")
+        expect(engine.contains("let duration = item.duration.seconds"), "engine reports the item duration to the store")
         exit(failures == 0 ? 0 : 1)
     }
 }
