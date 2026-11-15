@@ -416,9 +416,9 @@ final class PlayerStore: ObservableObject {
         }
     }
 
-    private func handleEnded(position: Double, itemDuration: Double) {
+    private func handleEnded(streamPosition: Double, itemDuration: Double) {
         if case .resume(let at) = PlaybackEndPolicy.resolve(
-            position: position,
+            position: streamPosition,
             itemDuration: itemDuration,
             trusted: duration
         ), endResumeCount < 3 {

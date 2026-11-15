@@ -199,6 +199,11 @@ struct AlbumWithSongsDto: Codable, Identifiable, Equatable {
     let song: [TrackDto]?
 
     var tracks: [TrackDto] { song ?? [] }
+
+    var displayArtist: String {
+        let cleaned = cleanArtistName(artist)
+        return cleaned.isEmpty ? (artist ?? "") : cleaned
+    }
 }
 
 struct ArtistWithAlbumsDto: Codable, Identifiable, Equatable {
