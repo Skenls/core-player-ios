@@ -62,7 +62,7 @@ final class PlayerStore: ObservableObject {
             self?.handleTime(time, engineDuration: engineDuration)
         }
         engine.onEnded = { [weak self] position, itemDuration in
-            self?.handleEnded(position: position, itemDuration: itemDuration)
+            self?.handleEnded(streamPosition: position, itemDuration: itemDuration)
         }
         engine.onError = { [weak self] error in
             self?.handleError(error)
