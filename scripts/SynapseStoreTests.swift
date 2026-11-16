@@ -119,6 +119,7 @@ final class SynapseHTTP: URLProtocol {
         store.continuePlayback = false
         api.configure(baseURL: api.baseURL, sessionID: "beta")
         auth.user = UserDto(id: "beta", username: "b", role: "user")
+        player.queueEnded = false // account switch stops the previous account queue in the real app
         await wait { store.mix?.mix_id == "session-beta" }
         SynapseHTTP.mixDelay = false
         assert(!store.owns("session-alpha") && store.continuePlayback)
