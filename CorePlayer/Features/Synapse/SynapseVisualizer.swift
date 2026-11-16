@@ -37,11 +37,14 @@ private struct SynapseMetalSurface: UIViewRepresentable {
     }
 
     func updateUIView(_ view: SynapseMetalView, context: Context) {
+        let tempo = SynapseGeometry.boundedBPM(bpm)
+        guard view.playing != playing || view.visible != visible || view.renderer?.burst != burst ||
+                view.renderer?.white != white || view.renderer?.bpm != tempo else { return }
         view.playing = playing
         view.visible = visible
         view.renderer?.burst = burst
         view.renderer?.white = white
-        view.renderer?.bpm = SynapseGeometry.boundedBPM(bpm)
+        view.renderer?.bpm = tempo
         view.updateRendering()
     }
 
