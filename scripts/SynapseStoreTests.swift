@@ -107,7 +107,10 @@ final class SynapseHTTP: URLProtocol {
         await wait { SynapseHTTP.count("events") > 0 }
         try? await Task.sleep(nanoseconds: 30_000_000)
         let pending = defaults.dictionaryRepresentation().filter { $0.key.hasSuffix("outbox") }.values.compactMap { $0 as? Data }
-        assert(pending.contains { (try? JSONDecoder().decode(SynapseEventBatch.self, from: $0).events.count) == 1 })
+        assert(pending.contains { data in
+            let events = (try? JSONDecoder().decode(SynapseEventBatch.self, from: data).events) ?? []
+            return events.contains { $0.event_type == "favorite" }
+        })
         SynapseHTTP.failEvents = false
         store.flush()
         await wait { SynapseHTTP.count("events") >= 2 }

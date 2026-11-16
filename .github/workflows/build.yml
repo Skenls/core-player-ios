@@ -21,9 +21,6 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
-      - name: Portable logic regression tests
-        run: zsh scripts/run-logic-tests.sh
-
       - name: Build
         run: |
           xcodebuild \
@@ -35,6 +32,9 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Portable logic regression tests
+        run: zsh scripts/run-logic-tests.sh
 
       - name: Package IPA
         run: |
