@@ -78,6 +78,15 @@ final class SynapseHTTP: URLProtocol {
         let api = APIClient(baseURL: URL(string: "https://synapse.invalid")!, configuration: config)
         api.configure(baseURL: api.baseURL, sessionID: "alpha")
         let auth = AuthStore(), player = PlayerStore()
+        let favorites = FavoritesStore(api: api)
+        let tagged = TrackDto(id: "tagged", title: "Tagged", isFavoriteFlag: true)
+        assert(favorites.isFavorite(tagged))
+        favorites.apply(FavoritesIdsResponse())
+        assert(!favorites.isFavorite(tagged), "authoritative favorites must override stale track tags")
+        let added = await favorites.toggle(track: tagged)
+        assert(added && favorites.isFavorite(tagged))
+        let removed = await favorites.toggle(track: tagged)
+        assert(removed && !favorites.isFavorite(tagged), "removing a tagged favorite must update its heart")
         let suite = "coreplayer.synapse.tests." + UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }

@@ -6,6 +6,8 @@ final class FavoritesStore: ObservableObject {
     @Published private(set) var albumIDs: Set<String> = []
 
     var onFavoriteAdded: ((TrackDto) -> Void)?
+    private var loadedTrackIDs = false
+    private var trackOverrides: [String: Bool] = [:]
     private let api: APIClient
 
     init(api: APIClient) {
@@ -13,7 +15,7 @@ final class FavoritesStore: ObservableObject {
     }
 
     func isFavorite(_ track: TrackDto) -> Bool {
-        trackIDs.contains(track.id) || (track.isFavorite && !trackIDs.contains(track.id))
+        trackOverrides[track.id] ?? (loadedTrackIDs ? trackIDs.contains(track.id) : trackIDs.contains(track.id) || track.isFavorite)
     }
 
     func isFavorite(albumID: String) -> Bool {
@@ -25,6 +27,8 @@ final class FavoritesStore: ObservableObject {
     }
 
     func apply(_ ids: FavoritesIdsResponse) {
+        loadedTrackIDs = true
+        trackOverrides.removeAll()
         trackIDs = Set(ids.trackIDs)
         albumIDs = Set(ids.albumIDs)
     }
@@ -40,7 +44,8 @@ final class FavoritesStore: ObservableObject {
     @discardableResult
     func toggle(track: TrackDto) async -> Bool {
         let server = api.baseURL, session = api.sessionID
-        let wasFavorite = trackIDs.contains(track.id)
+        let wasFavorite = isFavorite(track)
+        trackOverrides[track.id] = !wasFavorite
         if wasFavorite {
             trackIDs.remove(track.id)
         } else {
@@ -57,10 +62,12 @@ final class FavoritesStore: ObservableObject {
                     trackIDs.remove(track.id)
                 }
             }
+            trackOverrides[track.id] = trackIDs.contains(track.id)
             if trackIDs.contains(track.id), !wasFavorite { onFavoriteAdded?(track) }
             return true
         } catch {
             guard api.baseURL == server, api.sessionID == session else { return false }
+            trackOverrides[track.id] = wasFavorite
             if wasFavorite {
                 trackIDs.insert(track.id)
             } else {
@@ -97,6 +104,8 @@ final class FavoritesStore: ObservableObject {
     }
 
     func clear() {
+        loadedTrackIDs = false
+        trackOverrides.removeAll()
         trackIDs.removeAll()
         albumIDs.removeAll()
     }
