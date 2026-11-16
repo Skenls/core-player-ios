@@ -10,6 +10,7 @@ final class AppContainer: ObservableObject {
     let favorites: FavoritesStore
     let recent: RecentStore
     let searchHistory: SearchHistoryStore
+    let synapse: SynapseStore
     let player: PlayerStore
 
     init() {
@@ -36,6 +37,8 @@ final class AppContainer: ObservableObject {
             cache: cache,
             recent: recent
         )
+        self.synapse = SynapseStore(api: api, player: self.player, auth: self.auth)
+        favorites.onFavoriteAdded = { [weak synapse = self.synapse] track in synapse?.favorite(track) }
         configureAppearance()
     }
 

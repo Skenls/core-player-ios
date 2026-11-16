@@ -37,16 +37,24 @@ final class APIClient {
 
     private let session: URLSession
 
-    init(baseURL: URL = URL(string: "http://localhost:3000")!) {
+    init(baseURL: URL = URL(string: "http://localhost:3000")!, configuration: URLSessionConfiguration = .default) {
         self.baseURL = baseURL
 
-        let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 10
         configuration.timeoutIntervalForResource = 30
         configuration.httpShouldSetCookies = false
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.waitsForConnectivity = false
         self.session = URLSession(configuration: configuration)
+    }
+
+    private init(baseURL: URL, sessionID: String?, session: URLSession) {
+        self.baseURL = baseURL; self.sessionID = sessionID; self.session = session
+    }
+
+    /// Freeze credentials for work that may outlive an account/server switch.
+    func snapshot() -> APIClient {
+        APIClient(baseURL: baseURL, sessionID: sessionID, session: session)
     }
 
     func configure(baseURL: URL, sessionID: String?) {
@@ -199,6 +207,26 @@ final class APIClient {
         }
         let (data, _) = try await send(path: "api/lyrics/\(track.id)", query: query)
         return try decode(LyricsResponse.self, from: data)
+    }
+
+    // MARK: - Synapse
+
+    func synapseMix(_ request: SynapseMixRequest) async throws -> SynapseMix {
+        let (data, _) = try await send(path: "api/synapse/mix", method: "POST", body: JSONEncoder().encode(request))
+        return try decode(SynapseMix.self, from: data)
+    }
+
+    func synapseStatus() async throws -> SynapseStatus {
+        let (data, _) = try await send(path: "api/synapse/status")
+        return try decode(SynapseStatus.self, from: data)
+    }
+
+    func synapseEvents(_ events: [SynapseEvent]) async throws {
+        _ = try await send(path: "api/synapse/events", method: "POST", body: JSONEncoder().encode(SynapseEventBatch(events: events)))
+    }
+
+    func resetSynapse() async throws {
+        _ = try await send(path: "api/synapse/profile", method: "DELETE")
     }
 
     // MARK: - URLs

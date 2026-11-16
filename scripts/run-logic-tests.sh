@@ -10,6 +10,7 @@ swiftc \
   -o "$OUT" \
   "$ROOT/CorePlayer/Core/AudioCodec.swift" \
   "$ROOT/CorePlayer/Core/Models.swift" \
+  "$ROOT/CorePlayer/Features/Synapse/SynapseModels.swift" \
   "$ROOT/CorePlayer/Core/ArtistUtils.swift" \
   "$ROOT/CorePlayer/Core/LRCParser.swift" \
   "$ROOT/CorePlayer/Core/StreamURLBuilder.swift" \
@@ -49,3 +50,26 @@ LAYOUT_OUT="${TMPDIR:-/tmp}/coreplayer-layout-tests"
 swiftc -swift-version 5 -parse-as-library -o "$LAYOUT_OUT" \
   "$ROOT/scripts/LayoutTests.swift"
 "$LAYOUT_OUT" "$ROOT"
+
+ARTIST_OUT="${TMPDIR:-/tmp}/coreplayer-artist-tests"
+swiftc -swift-version 5 -parse-as-library -o "$ARTIST_OUT" \
+  "$ROOT/CorePlayer/Core/Models.swift" "$ROOT/CorePlayer/Core/ArtistUtils.swift" \
+  "$ROOT/CorePlayer/Features/Synapse/SynapseModels.swift" "$ROOT/scripts/ArtistUtilsTests.swift"
+"$ARTIST_OUT"
+
+SYNAPSE_OUT="${TMPDIR:-/tmp}/coreplayer-synapse-tests"
+swiftc -swift-version 5 -parse-as-library -o "$SYNAPSE_OUT" \
+  "$ROOT/CorePlayer/Core/Models.swift" "$ROOT/CorePlayer/Core/ArtistUtils.swift" \
+  "$ROOT/CorePlayer/Features/Synapse/SynapseModels.swift" \
+  "$ROOT/CorePlayer/Features/Synapse/SynapseListeningTracker.swift" "$ROOT/scripts/SynapseTests.swift"
+"$SYNAPSE_OUT"
+
+STORE_OUT="${TMPDIR:-/tmp}/coreplayer-synapse-store-tests"
+swiftc -swift-version 5 -parse-as-library -o "$STORE_OUT" \
+  "$ROOT/CorePlayer/Core/APIClient.swift" "$ROOT/CorePlayer/Core/Models.swift" \
+  "$ROOT/CorePlayer/Core/ArtistUtils.swift" "$ROOT/CorePlayer/Core/AudioCodec.swift" \
+  "$ROOT/CorePlayer/Core/StreamURLBuilder.swift" "$ROOT/CorePlayer/Playback/QueueState.swift" \
+  "$ROOT/CorePlayer/Features/Synapse/SynapseModels.swift" \
+  "$ROOT/CorePlayer/Features/Synapse/SynapseListeningTracker.swift" \
+  "$ROOT/CorePlayer/Features/Synapse/SynapseStore.swift" "$ROOT/scripts/SynapseStoreTests.swift"
+"$STORE_OUT"

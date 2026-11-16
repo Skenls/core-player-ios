@@ -83,7 +83,7 @@ struct SynapseSection: View {
             .opacity(synapse.resetting || (tracks.isEmpty && !shownMixActive) ? 0.5 : 1)
             .padding(.top, 24)
             HStack(spacing: 10) {
-                auxiliaryButton("Настроить", icon: "slider.horizontal.3") { showFilters = true }
+                auxiliaryButton("Настроить", icon: "line.3.horizontal") { showFilters = true }
                 auxiliaryButton("Подборка", icon: "music.note.list") { showTracks = true }
             }.padding(.top, 12)
             if synapse.error != nil || synapse.mix?.status == "unavailable" {

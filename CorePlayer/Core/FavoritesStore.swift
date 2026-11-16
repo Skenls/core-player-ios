@@ -5,6 +5,7 @@ final class FavoritesStore: ObservableObject {
     @Published private(set) var trackIDs: Set<String> = []
     @Published private(set) var albumIDs: Set<String> = []
 
+    var onFavoriteAdded: ((TrackDto) -> Void)?
     private let api: APIClient
 
     init(api: APIClient) {
@@ -36,7 +37,9 @@ final class FavoritesStore: ObservableObject {
         }
     }
 
-    func toggle(track: TrackDto) async {
+    @discardableResult
+    func toggle(track: TrackDto) async -> Bool {
+        let server = api.baseURL, session = api.sessionID
         let wasFavorite = trackIDs.contains(track.id)
         if wasFavorite {
             trackIDs.remove(track.id)
@@ -46,6 +49,7 @@ final class FavoritesStore: ObservableObject {
 
         do {
             let result = try await api.toggleFavorite(id: track.id, type: "track")
+            guard api.baseURL == server, api.sessionID == session else { return false }
             if let result {
                 if result {
                     trackIDs.insert(track.id)
@@ -53,12 +57,16 @@ final class FavoritesStore: ObservableObject {
                     trackIDs.remove(track.id)
                 }
             }
+            if trackIDs.contains(track.id), !wasFavorite { onFavoriteAdded?(track) }
+            return true
         } catch {
+            guard api.baseURL == server, api.sessionID == session else { return false }
             if wasFavorite {
                 trackIDs.insert(track.id)
             } else {
                 trackIDs.remove(track.id)
             }
+            return false
         }
     }
 

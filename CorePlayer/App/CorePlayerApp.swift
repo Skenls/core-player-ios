@@ -7,6 +7,7 @@ struct CorePlayerApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environmentObject(container.synapse)
                 .environmentObject(container.auth)
                 .environmentObject(container.settings)
                 .environmentObject(container.player)

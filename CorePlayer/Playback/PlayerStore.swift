@@ -19,6 +19,32 @@ final class PlayerStore: ObservableObject {
         didSet { queue.isShuffled = isShuffled }
     }
 
+    // Additive Synapse observations; streaming/seek/cache stay in the existing engine.
+    private(set) var queueVersion = 0
+    private(set) var playbackID = 0
+    private(set) var queueEnded = false
+    var onSynapseSample: (() -> Void)?
+    var queuedTracks: [TrackDto] { queue.tracks }
+    var synapseSnapshot: SynapsePlaybackSnapshot {
+        SynapsePlaybackSnapshot(track: currentTrack, playbackID: playbackID, playing: isPlaying,
+                                buffering: isLoading, position: position, duration: duration, ended: queueEnded)
+    }
+
+    func appendSynapse(_ tracks: [TrackDto], version: Int) -> Bool {
+        guard version == queueVersion, queueEnded, repeatMode == .off else { return false }
+        let known = Set(queue.tracks.map(\.id))
+        var seen = known
+        let fresh = tracks.filter { seen.insert($0.id).inserted }
+        guard !fresh.isEmpty else { return false }
+        queueVersion += 1
+        let start = queue.tracks.count
+        queue.setQueue(queue.tracks + fresh, startAt: start)
+        queueCount = queue.tracks.count
+        sourceTitle = "Synapse"
+        loadCurrent()
+        return true
+    }
+
     private var queue = QueueState()
     private let engine = PlayerEngine()
     private let api: APIClient
@@ -124,7 +150,7 @@ final class PlayerStore: ObservableObject {
 
     // MARK: - Public controls
 
-    func play(track: TrackDto, in tracks: [TrackDto]? = nil, source: String? = nil) {
+    func play(track: TrackDto, in tracks: [TrackDto]? = nil, source: String? = nil, startPlaying: Bool = true) {
         let list: [TrackDto]
         if let tracks, !tracks.isEmpty {
             list = tracks
@@ -134,11 +160,14 @@ final class PlayerStore: ObservableObject {
             list = [track]
         }
 
+        onSynapseSample?()
+        queueVersion += 1
+        queueEnded = false
         let start = list.firstIndex(where: { $0.id == track.id }) ?? 0
         queue.setQueue(list, startAt: start)
         queueCount = list.count
         sourceTitle = source
-        loadCurrent()
+        loadCurrent(autoPlay: startPlaying)
     }
 
     func playAll(_ tracks: [TrackDto], source: String, shuffled: Bool = false) {
@@ -149,6 +178,8 @@ final class PlayerStore: ObservableObject {
     }
 
     func togglePlayPause() {
+        onSynapseSample?()
+        queueEnded = false
         guard currentTrack != nil else {
             if let first = recent.tracks.first {
                 play(track: first)
@@ -170,6 +201,8 @@ final class PlayerStore: ObservableObject {
     }
 
     func play() {
+        onSynapseSample?()
+        queueEnded = false
         guard currentTrack != nil else { return }
         audioSession.activate()
         engine.play()
@@ -178,12 +211,16 @@ final class PlayerStore: ObservableObject {
     }
 
     func pause() {
+        onSynapseSample?()
+        queueEnded = false
         engine.pause()
         isPlaying = false
         updateNowPlaying(force: true)
     }
 
     func next() {
+        onSynapseSample?()
+        queueEnded = false
         guard let index = queue.nextIndex() else {
             seek(0)
             pause()
@@ -194,6 +231,8 @@ final class PlayerStore: ObservableObject {
     }
 
     func previous() {
+        onSynapseSample?()
+        queueEnded = false
         if position > 3 {
             seek(0)
             return
@@ -208,6 +247,8 @@ final class PlayerStore: ObservableObject {
     }
 
     func seek(_ time: Double, completion: (() -> Void)? = nil) {
+        onSynapseSample?()
+        queueEnded = false
         let upper = duration > 0 ? duration : time
         let clamped = min(max(0, time), upper)
         switch PlaybackSeekRouter.route(time: clamped, isLocal: currentIsLocal) {
@@ -238,6 +279,9 @@ final class PlayerStore: ObservableObject {
     }
 
     func stop() {
+        onSynapseSample?()
+        queueVersion += 1
+        queueEnded = false
         endTransitionBackgroundTask()
         retryWork?.cancel()
         retryWork = nil
@@ -287,7 +331,12 @@ final class PlayerStore: ObservableObject {
 
     // MARK: - Loading
 
-    private func loadCurrent(isRetry: Bool = false) {
+    private func loadCurrent(isRetry: Bool = false, autoPlay: Bool = true) {
+        if !isRetry {
+            onSynapseSample?()
+            playbackID += 1
+            queueEnded = false
+        }
         guard let track = queue.current else {
             stop()
             return
@@ -326,9 +375,9 @@ final class PlayerStore: ObservableObject {
             return
         }
 
-        audioSession.activate()
-        engine.load(url: url, autoPlay: true)
-        isPlaying = true
+        if autoPlay { audioSession.activate() }
+        engine.load(url: url, autoPlay: autoPlay)
+        isPlaying = autoPlay
 
         recent.add(track)
         updateNowPlaying(force: true)
@@ -411,6 +460,7 @@ final class PlayerStore: ObservableObject {
             isLoading = false
         }
 
+        onSynapseSample?()
         if Date().timeIntervalSince(lastNowPlayingUpdate) >= 1 {
             updateNowPlaying(force: false)
         }
@@ -431,6 +481,8 @@ final class PlayerStore: ObservableObject {
         }
 
         if repeatMode == .one {
+            onSynapseSample?()
+            playbackID += 1
             seek(0)
             engine.play()
             isPlaying = true
@@ -440,6 +492,9 @@ final class PlayerStore: ObservableObject {
         guard let index = queue.nextIndex() else {
             isPlaying = false
             position = duration
+            queueEnded = true
+            if onSynapseSample != nil { beginTransitionBackgroundTask() }
+            onSynapseSample?()
             updateNowPlaying(force: true)
             return
         }
@@ -452,7 +507,7 @@ final class PlayerStore: ObservableObject {
         // Fallback to original quality (.auto) if transcoding or specific codec failed
         if currentCodec != .auto {
             currentCodec = .auto
-            loadCurrent(isRetry: true)
+            loadCurrent(isRetry: true, autoPlay: isPlaying)
             return
         }
 
@@ -470,7 +525,7 @@ final class PlayerStore: ObservableObject {
 
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.currentTrack != nil else { return }
-            self.loadCurrent(isRetry: true)
+            self.loadCurrent(isRetry: true, autoPlay: self.isPlaying)
         }
         retryWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)

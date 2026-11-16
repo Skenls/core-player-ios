@@ -30,13 +30,16 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
     let isFavoriteFlag: Bool?
     let suffix: String?
     let contentType: String?
+    var synapse: SynapseMetadata?
+    var bpm: Double?
+    var genre: String?
 
     private enum CodingKeys: String, CodingKey {
         case id, title, artist, album, duration, starred
         case artistId, albumId, coverArt, trackNumber, discNumber
         case track
         case isFavoriteFlag = "is_favorite"
-        case suffix, contentType
+        case suffix, contentType, synapse, bpm, genre
     }
 
     init(
@@ -53,7 +56,10 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
         starred: String? = nil,
         isFavoriteFlag: Bool? = nil,
         suffix: String? = nil,
-        contentType: String? = nil
+        contentType: String? = nil,
+        synapse: SynapseMetadata? = nil,
+        bpm: Double? = nil,
+        genre: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -69,6 +75,9 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
         self.isFavoriteFlag = isFavoriteFlag
         self.suffix = suffix
         self.contentType = contentType
+        self.synapse = synapse
+        self.bpm = bpm
+        self.genre = genre
     }
 
     init(from decoder: Decoder) throws {
@@ -94,6 +103,9 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
         isFavoriteFlag = try? c.decode(Bool.self, forKey: .isFavoriteFlag)
         suffix = try? c.decode(String.self, forKey: .suffix)
         contentType = try? c.decode(String.self, forKey: .contentType)
+        synapse = try c.decodeIfPresent(SynapseMetadata.self, forKey: .synapse)
+        bpm = try? c.decode(Double.self, forKey: .bpm)
+        genre = try? c.decode(String.self, forKey: .genre)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -112,6 +124,9 @@ struct TrackDto: Codable, Identifiable, Equatable, Hashable {
         try c.encodeIfPresent(isFavoriteFlag, forKey: .isFavoriteFlag)
         try c.encodeIfPresent(suffix, forKey: .suffix)
         try c.encodeIfPresent(contentType, forKey: .contentType)
+        try c.encodeIfPresent(synapse, forKey: .synapse)
+        try c.encodeIfPresent(bpm, forKey: .bpm)
+        try c.encodeIfPresent(genre, forKey: .genre)
     }
 
     var isFavorite: Bool {
@@ -156,7 +171,7 @@ struct AlbumDto: Codable, Identifiable, Equatable, Hashable {
 
     var displayArtist: String {
         let cleaned = cleanArtistName(artist)
-        return cleaned.isEmpty ? (artist ?? "") : cleaned
+        return cleaned.isEmpty ? "Неизвестный исполнитель" : cleaned
     }
 }
 
@@ -174,7 +189,7 @@ struct ArtistDto: Codable, Identifiable, Equatable, Hashable {
 
     var displayName: String {
         let cleaned = cleanArtistName(name)
-        return cleaned.isEmpty ? name : cleaned
+        return cleaned.isEmpty ? "Неизвестный исполнитель" : cleaned
     }
 }
 
@@ -202,7 +217,7 @@ struct AlbumWithSongsDto: Codable, Identifiable, Equatable {
 
     var displayArtist: String {
         let cleaned = cleanArtistName(artist)
-        return cleaned.isEmpty ? (artist ?? "") : cleaned
+        return cleaned.isEmpty ? "Неизвестный исполнитель" : cleaned
     }
 }
 
@@ -216,7 +231,7 @@ struct ArtistWithAlbumsDto: Codable, Identifiable, Equatable {
 
     var displayName: String {
         let cleaned = cleanArtistName(name)
-        return cleaned.isEmpty ? name : cleaned
+        return cleaned.isEmpty ? "Неизвестный исполнитель" : cleaned
     }
 
     private enum CodingKeys: String, CodingKey {
