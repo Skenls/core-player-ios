@@ -54,7 +54,7 @@ struct CoreTabBar: View {
                     }
                     .foregroundColor(selected ? CoreColors.textPrimary : CoreColors.textSecondary)
                     .padding(.vertical, 6)
-                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity)
                     .background {
                         if selected {
                             Capsule()
@@ -62,7 +62,7 @@ struct CoreTabBar: View {
                                 .matchedGeometryEffect(id: "activeTabBubble", in: tabAnimation)
                         }
                     }
-                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

@@ -40,11 +40,33 @@ struct ArtistUtilsTests {
         expect(cleanArtistName("Swedish House Mafia") == "Swedish House Mafia", "latin trio without patronymic stays")
         expect(cleanArtistName("Kai Angel (The Best Of)") == "Kai Angel (The Best Of)", "non-FIO parentheses stay")
 
+        for credit in ["Robert Plaudis", "Plaudis Robert", "Роберт Плаудис", "Плаудис Роберт"] {
+            expect(cleanArtistName("Artist • \(credit)") == "Artist", "strips targeted credit \(credit)")
+            expect(cleanArtistName("Artist (\(credit))") == "Artist", "strips parenthetical credit \(credit)")
+            expect(cleanArtistName(credit) == "", "removes credit alone \(credit)")
+        }
+        for artist in ["Robert Plant", "Robert Palmer", "Robert Johnson", "Robyn", "John Legend", "George Michael", "Eric Clapton"] {
+            expect(cleanArtistName(artist) == artist, "preserves performer \(artist)")
+        }
+        expect(cleanArtistName("Artist (Dmitri Itskov)") == "Artist", "cleans name and surname in parentheses")
+        expect(cleanArtistName("Artist (Sandwich Club)") == "Artist (Sandwich Club)", "keeps non-credit parentheses ending in ich")
+
         print("TrackDto")
         let t = TrackDto(id: "1", title: "LIPSTICK", artist: "Kai Angel, 9mice • Дмитрий Олегович Ицков")
         expect(t.displayArtist == "Kai Angel, 9mice", "displayArtist cleaned")
         let t2 = TrackDto(id: "2", title: "x", artist: "Серков Марк Робертович")
         expect(t2.displayArtist == "Неизвестный исполнитель", "FIO-only falls back to unknown")
+
+        let decoder = JSONDecoder()
+        let credit = "Robert Plaudis"
+        let album = try! decoder.decode(AlbumDto.self, from: Data("{\"id\":\"a\",\"name\":\"Album\",\"artist\":\"\(credit)\"}".utf8))
+        let albumDetail = try! decoder.decode(AlbumWithSongsDto.self, from: Data("{\"id\":\"a\",\"name\":\"Album\",\"artist\":\"\(credit)\"}".utf8))
+        let artist = try! decoder.decode(ArtistDto.self, from: Data("{\"id\":\"a\",\"name\":\"\(credit)\"}".utf8))
+        let artistDetail = try! decoder.decode(ArtistWithAlbumsDto.self, from: Data("{\"id\":\"a\",\"name\":\"\(credit)\"}".utf8))
+        expect(album.displayArtist == "Неизвестный исполнитель", "album does not reinsert removed credit")
+        expect(albumDetail.displayArtist == "Неизвестный исполнитель", "album detail does not reinsert removed credit")
+        expect(artist.displayName == "Неизвестный исполнитель", "artist does not reinsert removed credit")
+        expect(artistDetail.displayName == "Неизвестный исполнитель", "artist detail does not reinsert removed credit")
 
         if failures == 0 {
             print("All artist tests passed.")

@@ -29,6 +29,13 @@ func isFioSegment(_ segment: String) -> Bool {
         return true
     }
 
+    // This uploader credit has no patronymic or Slavic surname ending. Match
+    // the full identity rather than treating all performers named Robert as FIO.
+    let identity = words(of: trimmed).map { $0.lowercased() }.joined(separator: " ")
+    if ["robert plaudis", "plaudis robert", "роберт плаудис", "плаудис роберт"].contains(identity) {
+        return true
+    }
+
     let parts = words(of: trimmed)
     guard parts.count >= 2, parts.count <= 4 else { return false }
 
@@ -63,22 +70,16 @@ func cleanArtistName(_ raw: String?) -> String {
     var cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
     if isFioSegment(cleaned) { return "" }
 
-    // Parenthetical credits: "(ф и о)", "(Ицков Дмитрий Олегovich)", "(Ицков Д. О.)".
-    cleaned = cleaned.replacingOccurrences(
-        of: "\\s*\\(\\s*(?:ф\\s*[.\\s]*и\\s*[.\\s]*о|фио|f\\s*[.\\s]*i\\s*[.\\s]*o|fio)\\s*\\)",
-        with: "",
-        options: [.regularExpression, .caseInsensitive]
-    )
-    cleaned = cleaned.replacingOccurrences(
-        of: "\\s*\\([^)]*(?:ович|евич|ич|овна|евна|ична|инична|ovich|evich|ovna|evna|ichna|inichna|ovych|evych|ivna|avna)[^)]*\\)",
-        with: "",
-        options: [.regularExpression, .caseInsensitive]
-    )
-    cleaned = cleaned.replacingOccurrences(
-        of: "\\s*\\((?:[A-ZА-ЯЁ][a-zа-яё]+\\s+(?:[A-ZА-ЯЁ]\\.\\s*)+|(?:[A-ZА-ЯЁ]\\.\\s*)+[A-ZА-ЯЁ][a-zа-яё]+)\\)",
-        with: "",
-        options: [.regularExpression]
-    )
+    // Use the same segment rules in parentheses and separated credits, so
+    // ordinary parenthetical artist names do not get removed by substring matches.
+    let parentheses = try! NSRegularExpression(pattern: "\\([^)]*\\)")
+    let matches = parentheses.matches(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned))
+    for match in matches.reversed() {
+        guard let range = Range(match.range, in: cleaned) else { continue }
+        let credit = String(cleaned[range].dropFirst().dropLast())
+        if isFioSegment(credit) { cleaned.removeSubrange(range) }
+    }
+    cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
 
     // Dash separator with FIO on one side: "Kai Angel - Dmitriy Olegovich Itskov".
     if let dash = cleaned.range(of: "\\s+[-—–]\\s+", options: [.regularExpression]) {

@@ -16,6 +16,7 @@ struct NowPlayingView: View {
     @State var lyricsLoading = false
     @State var lyricsError: String?
     @State var showAddToPlaylist = false
+    @State private var destinationTrack: TrackDto?
 
     var body: some View {
         GeometryReader { geo in
@@ -30,6 +31,9 @@ struct NowPlayingView: View {
         .onChange(of: player.currentTrack?.id) { _ in
             showLyrics = false
             loadLyrics()
+        }
+        .sheet(item: $destinationTrack) { track in
+            TrackDestinationsSheet(track: track)
         }
         .sheet(isPresented: $showAddToPlaylist) {
             if let track = player.currentTrack {
@@ -157,14 +161,25 @@ struct NowPlayingView: View {
     var titles: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(player.currentTrack?.title ?? "Нет активного трека")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                Text(player.currentTrack?.displayArtist ?? "Неизвестный исполнитель")
-                    .font(.system(size: 16))
-                    .foregroundColor(CoreColors.textSecondary)
-                    .lineLimit(1)
+                Button {
+                    destinationTrack = player.currentTrack
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(player.currentTrack?.title ?? "Нет активного трека")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                        Text(player.currentTrack?.displayArtist ?? "Неизвестный исполнитель")
+                            .font(.system(size: 16))
+                            .foregroundColor(CoreColors.textSecondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(player.currentTrack == nil)
+                .accessibilityHint("Открыть исполнителя или альбом")
                 if let error = player.errorMessage {
                     Text(error)
                         .font(.system(size: 11))
