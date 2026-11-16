@@ -53,7 +53,7 @@ import Combine
         let key = user.map { sharedAPI.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + ":" + $0.id }
         guard key != binding else { return }
         epoch += 1; requestID += 1
-        mixTask?.cancel(); continuationTask?.cancel()
+        mixTask?.cancel(); continuationTask?.cancel(); continuationTask = nil
         // An in-flight request uses its immutable old client; it can never send as the next account.
         binding = key; client = nil
         sessions.removeAll(); outbox.removeAll(); tracker = SynapseListeningTracker(); attemptedQueue = nil

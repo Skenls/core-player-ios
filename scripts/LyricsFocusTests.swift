@@ -29,13 +29,14 @@ struct LyricsFocusTests {
         wait(0.2)
         expect(noEnded.isAutoFocusActive, "restores focus even when onEnded never arrives")
 
-        let refreshed = LyricsFocusModel(restoreDelay: 0.12)
+        // CI runners can delay run-loop delivery by more than the old 40 ms margin.
+        let refreshed = LyricsFocusModel(restoreDelay: 1.0)
         refreshed.userStartedScrolling()
-        wait(0.07)
+        wait(0.6)
         refreshed.userStartedScrolling()
-        wait(0.08)
+        wait(0.6)
         expect(!refreshed.isAutoFocusActive, "continued scrolling refreshes the restore delay")
-        wait(0.08)
+        wait(0.6)
         expect(refreshed.isAutoFocusActive, "focus returns after scrolling stops")
 
         let ended = LyricsFocusModel(restoreDelay: 0.05)

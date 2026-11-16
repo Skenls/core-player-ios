@@ -111,10 +111,16 @@ final class SynapseHTTP: URLProtocol {
         SynapseHTTP.failEvents = false
         store.flush()
         await wait { SynapseHTTP.count("events") >= 2 }
+        SynapseHTTP.mixDelay = true
+        let pendingMixes = SynapseHTTP.count("mix")
+        player.queueEnded = true
+        store.sample()
+        await wait { SynapseHTTP.count("mix") > pendingMixes }
         store.continuePlayback = false
         api.configure(baseURL: api.baseURL, sessionID: "beta")
         auth.user = UserDto(id: "beta", username: "b", role: "user")
         await wait { store.mix?.mix_id == "session-beta" }
+        SynapseHTTP.mixDelay = false
         assert(!store.owns("session-alpha") && store.continuePlayback)
         let before = SynapseHTTP.count("events")
         store.favorite(first) // stale old-account exposure must never train beta
