@@ -41,6 +41,7 @@ final class HomeViewModel: ObservableObject {
 }
 
 struct HomeView: View {
+    var isVisible = true
     @Environment(\.api) private var api
     @EnvironmentObject private var player: PlayerStore
     @EnvironmentObject private var recent: RecentStore
@@ -61,6 +62,9 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     header
                         .padding(.top, 8)
+
+                    SynapseSection(isVisible: isVisible && !showSettings)
+                        .padding(.horizontal, -16)
 
                     if vm.isLoading && recentTracks.isEmpty && vm.playlists.isEmpty {
                         LoadingView()

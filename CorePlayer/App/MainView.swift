@@ -14,7 +14,7 @@ struct MainView: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                tab(.home) { HomeView() }
+                tab(.home) { HomeView(isVisible: selected == .home && !showNowPlaying) }
                 tab(.search) { SearchView() }
                 tab(.browse) { BrowseView() }
                 tab(.library) { LibraryView() }
